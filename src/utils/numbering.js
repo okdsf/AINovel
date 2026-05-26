@@ -9,6 +9,16 @@ function toChineseNum(n) {
   return String(n)
 }
 
+// Per-book language preference for chapter/volume label formatting.
+// meta.language === 'en' → "Chapter 1 / Volume 1"
+// otherwise (default)    → "第一章 / 第一卷"
+function chLabelFor(meta, n) {
+  return meta?.language === 'en' ? `Chapter ${n}` : `第${toChineseNum(n)}章`
+}
+function volLabelFor(meta, n) {
+  return meta?.language === 'en' ? `Volume ${n}` : `第${toChineseNum(n)}卷`
+}
+
 /**
  * Get the display title with auto-numbering for a chapter
  * @param {object} meta - the full novel meta
@@ -24,8 +34,8 @@ export function getChapterDisplay(meta, chapterId) {
     for (let ci = 0; ci < vol.chapters.length; ci++) {
       globalChIndex++
       if (vol.chapters[ci].id === chapterId) {
-        const chLabel = `第${toChineseNum(globalChIndex)}章`
-        const volLabel = `第${toChineseNum(vi + 1)}卷`
+        const chLabel = chLabelFor(meta, globalChIndex)
+        const volLabel = volLabelFor(meta, vi + 1)
         return {
           volLabel,
           chLabel,
@@ -44,7 +54,7 @@ export function getVolumeLabel(meta, volId) {
   if (!meta) return ''
   const idx = meta.volumes.findIndex(v => v.id === volId)
   if (idx === -1) return ''
-  return `第${toChineseNum(idx + 1)}卷`
+  return volLabelFor(meta, idx + 1)
 }
 
 /**
@@ -57,7 +67,7 @@ export function getChapterLabel(meta, chapterId) {
     for (const ch of vol.chapters) {
       globalIndex++
       if (ch.id === chapterId) {
-        return `第${toChineseNum(globalIndex)}章`
+        return chLabelFor(meta, globalIndex)
       }
     }
   }

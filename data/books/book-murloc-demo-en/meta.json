@@ -1,39 +1,40 @@
 {
   "title": "Portal of Time (demo)",
+  "language": "en",
   "description": "Demo · An anxious undergrad, a low-level monster from a popular game, and a basement that absolutely cannot be found out about.",
   "volumes": [
     {
       "id": "vol-001",
-      "title": "Volume I · Don't Say My Name",
+      "title": "Don't Say My Name",
       "chapters": [
         {
           "id": "ch-001",
-          "title": "Ch. 1 · I Burned the Book",
+          "title": "I Burned the Book",
           "events": ["evt-murloc-whitehouse"],
           "world_date": "May 25, 2026 — 03:11 AM",
           "visibility": "normal"
         },
         {
           "id": "ch-002",
-          "title": "Ch. 2 · The Murloc Is Gone",
+          "title": "The Murloc Is Gone",
           "world_date": "May 25, 2026 — morning",
           "visibility": "normal"
         },
         {
           "id": "ch-003",
-          "title": "Ch. 3 · Mom Is Calling Me Up for Dinner",
+          "title": "Mom Is Calling Me Up for Dinner",
           "world_date": "May 25, 2026 — evening",
           "visibility": "normal"
         },
         {
           "id": "ch-004",
-          "title": "Ch. 4 · Anderson Cooper Will Not Give Up",
+          "title": "Anderson Cooper Will Not Give Up",
           "world_date": "May 25, 2026 — night",
           "visibility": "normal"
         },
         {
           "id": "ch-005",
-          "title": "Ch. 5 · If Anyone Asks",
+          "title": "If Anyone Asks",
           "world_date": "May 26, 2026 — 01:02 AM",
           "visibility": "normal"
         }
