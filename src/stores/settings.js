@@ -150,7 +150,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const customTextColor = ref('')           // '' = use theme default
   const customBgColor = ref('')
   // Chrome (overall UI) aesthetic: 'writer' = warm cream + ink + gold,
-  // 'nyt' = stark cream + black + NYT red. Affects sidebar/buttons/tabs/forms,
+  // 'editorial' = stark paper + black ink + emphasis red. Affects sidebar/buttons/tabs/forms,
   // independent of the per-reading-area --rc-* theme.
   const chromeTheme = ref('writer')
   // ↑ stored per-locale so switching language doesn't blow away the other one's pick
@@ -172,7 +172,7 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         if (data.customTextColor) customTextColor.value = data.customTextColor
         if (data.customBgColor) customBgColor.value = data.customBgColor
-        if (data.chromeTheme === 'writer' || data.chromeTheme === 'nyt') {
+        if (data.chromeTheme === 'writer' || data.chromeTheme === 'editorial') {
           chromeTheme.value = data.chromeTheme
         }
       }
@@ -260,7 +260,7 @@ export const useSettingsStore = defineStore('settings', () => {
   })
 
   function toggleChromeTheme() {
-    chromeTheme.value = chromeTheme.value === 'writer' ? 'nyt' : 'writer'
+    chromeTheme.value = chromeTheme.value === 'writer' ? 'editorial' : 'writer'
   }
 
   return {

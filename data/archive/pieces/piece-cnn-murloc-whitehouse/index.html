@@ -20,7 +20,7 @@
     font-family: 'Helvetica Neue', Arial, sans-serif;
   }
   .topbar .logo {
-    color: #cc0000; font-weight: 900; font-size: 30px; letter-spacing: -1px;
+    color: #cc0000; font-weight: 900; font-size: 26px; letter-spacing: -0.5px;
   }
   .topbar .live {
     color: #cc0000; font-size: 11px; font-weight: 700;
@@ -88,6 +88,12 @@
     color: #8b6b3d;
     letter-spacing: 0.04em;
   }
+  .demo-banner code {
+    background: #e8d6b4;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+  }
 </style>
 </head>
 <body>
@@ -100,44 +106,45 @@
   </div>
 
   <div class="demo-banner">
-    DEMO · 这是 NovelWeb 自带的演示报道。删除 <code>data/archive/pieces/piece-cnn-murloc-whitehouse/</code> 即可移除。
+    DEMO · 这是 NovelWeb 自带的演示报道。<br>
+    删除 <code>data/archive/pieces/piece-cnn-murloc-whitehouse/</code> 即可移除。
   </div>
 
   <div class="kicker">突发 · 国家安全 · 异常事件</div>
-  <h1>白宫玫瑰园出现"不明蓝色生物"——Secret Service 拒绝确认或否认</h1>
+  <h1>白宫玫瑰园出现"不明蓝色生物"——Secret Service拒绝确认或否认</h1>
   <p class="dek">
     一段流出的内部监控显示，凌晨 3 点过后，一只约 60 厘米高、显著呈蓝色调的两栖类生物
-    在玫瑰丛之间游荡了将近 90 分钟。当事生物外形与电子游戏《魔兽世界》中的某个低级怪物
-    "鱼人宝宝"完全一致——但白宫方面拒绝评论这一比较。
+    在玫瑰丛之间游荡了将近 90 分钟。当事生物外形与电子游戏《魔兽世界》中的「鱼人宝宝」几乎一致——
+    但有关方面拒绝评论这一比较。
   </p>
 
   <div class="byline">
-    <strong>Anderson Cooper</strong> 主持 · CNN 驻白宫记者团联合报道 · 2026 年 5 月 25 日
+    <strong>Anderson Cooper</strong> 主播 · CNN Anderson Cooper 360° 联合报道 · 2026 年 5 月 25 日
   </div>
 
   <p>
-    Anderson Cooper 360° 今晚直播现场。我们现在能确认的是——Secret Service 已经将玫瑰园
-    整个区域封锁，时间是当地时间凌晨 5 点 30 分。整整两个半小时之后，白宫新闻办公室
+    CNN Anderson Cooper 360° 今晚直播现场。我们现在能确认的是——Secret Service已经将玫瑰园整个
+    区域封锁，时间是当地时间凌晨 5 点 30 分。整整两个半小时之后，新闻办公室
     才向媒体发出第一份非常简短的声明，全文只有 11 个字："正在与相关机构核实情况。"
   </p>
 
   <p>
-    我们在直播过程中持续尝试向白宫新闻发言人取得回应。下面是新闻发言人 Sarah Lin
-    在 8 点钟例行通气会上的部分回答——
+    我们在直播过程中持续尝试向新闻发言人取得回应。下面是新闻发言人在 8 点钟
+    例行通气会上的部分回答——
   </p>
 
   <div class="transcript">
     <p>
       <span class="speaker">CNN 记者 <span class="timestamp">08:04 EDT</span></span>
-      Sarah，你能不能至少确认一下监控视频里那个生物是真的、不是 deepfake？
+      您能不能至少确认一下监控视频里那个生物是真的、不是合成？
     </p>
     <p>
-      <span class="speaker">新闻发言人 Sarah Lin <span class="timestamp">08:04 EDT</span></span>
+      <span class="speaker">新闻发言人 <span class="timestamp">08:04 EDT</span></span>
       我们正在核实视频材料的来源和真实性。
     </p>
     <p>
       <span class="speaker">CNN 记者 <span class="timestamp">08:05 EDT</span></span>
-      但你能不能确认昨晚有什么东西出现在玫瑰园？
+      但您能不能确认昨晚有什么东西出现在玫瑰园？
     </p>
     <p>
       <span class="speaker">新闻发言人 <span class="timestamp">08:05 EDT</span></span>
@@ -145,7 +152,7 @@
     </p>
     <p>
       <span class="speaker">CNN 记者 <span class="timestamp">08:06 EDT</span></span>
-      你能不能确认现在玫瑰园里**还有没有**那个生物？
+      您能不能确认现在玫瑰园里**还有没有**那个生物？
     </p>
     <p>
       <span class="speaker">新闻发言人 <span class="timestamp">08:06 EDT</span></span>
@@ -162,20 +169,20 @@
 
   <blockquote>
     "我们目前不能、也不愿意在这个时点把任何一件事和另一件事联系起来。"
-    ——白宫国土安全顾问，闭门简报会摘录
+    ——国土安全顾问，闭门简报会摘录
   </blockquote>
 
   <p>
-    现场最让人困惑的不是那个生物本身——而是 Secret Service 的处置流程。多位前
-    联邦执法官员对 CNN 表示，他们翻遍了"未识别动植物进入受保护区域"的所有
-    既有条款，没有找到任何与<em>"魔幻类电子游戏角色"</em>相关的细则。一位前 FBI
-    特工在直播中说："我们有处理熊、处理鳄鱼、处理蜂群的预案，但是没有处理这个的。"
+    现场最让人困惑的不是那个生物本身——而是 Secret Service 的处置流程。多位前联邦执法官员
+    对 CNN 表示，他们翻遍了"未识别动植物进入受保护区域"的所有既有条款，没有找到
+    任何与<em>"魔幻类电子游戏角色"</em>相关的细则。一位前 FBI 特工在直播中说：
+    "我们有处理熊、处理鳄鱼、处理蜂群的预案，但是没有处理这个的。"
   </p>
 
   <p>
-    据 CNN 独家获悉，最终是白宫厨房一名值夜员工 Jamal Owens——在被叫醒后的
+    据CNN独家获悉，最终是厨房一名值夜员工 Jamal Owens——在被叫醒后的
     11 分钟内——用一只熟鸡腿成功将该生物诱导至五金工具间。该员工目前已经被
-    要求签署保密协议。CNN 已经尝试联系他，但电话无人接听。
+    要求签署保密协议。CNN已经尝试联系他，但电话无人接听。
   </p>
 
   <p>

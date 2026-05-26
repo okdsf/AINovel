@@ -1,35 +1,35 @@
 {
   "outlets": [
-    { "id": "cnn",         "name": "CNN中文",        "color": "#CC0000", "category": "mainstream" },
-    { "id": "guardian",    "name": "The Guardian",   "color": "#052962", "category": "mainstream" },
-    { "id": "dailymail",   "name": "Daily Mail",     "color": "#004DB4", "category": "tabloid" },
-    { "id": "nhk",         "name": "NHK",            "color": "#003580", "category": "mainstream" },
-    { "id": "reddit",      "name": "Reddit",         "color": "#FF4500", "category": "social" },
-    { "id": "twitter",     "name": "X / Twitter",    "color": "#1DA1F2", "category": "social" },
-    { "id": "fox-news",    "name": "Fox News",       "color": "#003366", "category": "mainstream" },
-    { "id": "newyorker",  "name": "The New Yorker",  "color": "#1a1a1a", "category": "mainstream" },
-    { "id": "wsj",        "name": "Wall Street Journal", "color": "#0274B6", "category": "mainstream" },
-    { "id": "nyt",        "name": "The New York Times",  "color": "#1A1A1A", "category": "mainstream" },
-    { "id": "whitehouse", "name": "White House",         "color": "#002868", "category": "official" },
-    { "id": "telegraph", "name": "The Telegraph",       "color": "#2A6041", "category": "mainstream" },
-    { "id": "nypost",    "name": "New York Post",       "color": "#D0021B", "category": "tabloid" },
-    { "id": "time",      "name": "TIME",                "color": "#E40000", "category": "mainstream" },
-    { "id": "thesun",   "name": "The Sun",             "color": "#C3001A", "category": "tabloid" },
-    { "id": "foreign-affairs", "name": "Foreign Affairs", "color": "#1B2A4A", "category": "mainstream" },
-    { "id": "msnbc",          "name": "MSNBC",           "color": "#1A1046", "category": "mainstream" }
+    { "id": "cnn",          "name": "CNN",                "color": "#CC0000", "category": "mainstream" },
+    { "id": "fox-news",     "name": "Fox News",           "color": "#003366", "category": "mainstream" },
+    { "id": "msnbc",        "name": "MSNBC",              "color": "#1A1046", "category": "mainstream" },
+    { "id": "nyt",          "name": "The New York Times", "color": "#1A1A1A", "category": "mainstream" },
+    { "id": "guardian",     "name": "The Guardian",       "color": "#052962", "category": "mainstream" },
+    { "id": "wsj",          "name": "The Wall Street Journal", "color": "#0274B6", "category": "mainstream" },
+    { "id": "telegraph",    "name": "The Telegraph",      "color": "#2A6041", "category": "mainstream" },
+    { "id": "newyorker",    "name": "The New Yorker",     "color": "#1A1A1A", "category": "mainstream" },
+    { "id": "time",         "name": "TIME",               "color": "#E40000", "category": "mainstream" },
+    { "id": "foreign-affairs","name":"Foreign Affairs",   "color": "#1B2A4A", "category": "mainstream" },
+    { "id": "nhk",          "name": "NHK",                "color": "#003580", "category": "mainstream" },
+    { "id": "dailymail",    "name": "Daily Mail",         "color": "#004DB4", "category": "tabloid" },
+    { "id": "thesun",       "name": "The Sun",            "color": "#C3001A", "category": "tabloid" },
+    { "id": "nypost",       "name": "New York Post",      "color": "#D0021B", "category": "tabloid" },
+    { "id": "whitehouse",   "name": "White House",        "color": "#002868", "category": "official" },
+    { "id": "reddit",       "name": "Reddit",             "color": "#FF4500", "category": "social" },
+    { "id": "twitter",      "name": "X / Twitter",        "color": "#1DA1F2", "category": "social" }
   ],
   "reliability": [
-    { "id": "canon",      "label": "正典",   "color": "#C9A961", "desc": "小说本身或官方设定，不容置疑" },
-    { "id": "official",   "label": "官方",   "color": "#2E5EAA", "desc": "政府/议会等机构正式声明" },
-    { "id": "reported",   "label": "报道",   "color": "#6B6B6B", "desc": "正经媒体报道，可能带偏见" },
-    { "id": "rumor",      "label": "传闻",   "color": "#C79E3D", "desc": "小报、匿名来源、社交媒体" },
-    { "id": "propaganda", "label": "宣传",   "color": "#A0333A", "desc": "带明确立场的宣传材料" }
+    { "id": "canon",      "label": "正典 / Canon",      "color": "#C9A961", "desc": "小说本身或官方设定，不容置疑 / Canonical or authorial material" },
+    { "id": "official",   "label": "官方 / Official",   "color": "#2E5EAA", "desc": "政府/机构正式声明 / Formal institutional statement" },
+    { "id": "reported",   "label": "报道 / Reported",   "color": "#6B6B6B", "desc": "正经媒体报道，可能带框架偏向 / Reputable coverage, may carry framing" },
+    { "id": "rumor",      "label": "传闻 / Rumor",      "color": "#C79E3D", "desc": "小报、匿名来源、社交媒体 / Tabloid, anonymous source, social" },
+    { "id": "propaganda", "label": "宣传 / Propaganda", "color": "#A0333A", "desc": "带明确立场的宣传材料 / Material with explicit agenda" }
   ],
   "event_categories": [
-    { "id": "geopolitics", "label": "地缘政治", "color": "#C04040" },
-    { "id": "personal",    "label": "私事",     "color": "#4080C0" },
-    { "id": "military",    "label": "军事",     "color": "#8B4513" },
-    { "id": "cultural",    "label": "文化",     "color": "#6B8E23" },
-    { "id": "other",       "label": "其他",     "color": "#888888" }
+    { "id": "geopolitics", "label": "地缘政治 / Geopolitics", "color": "#C04040" },
+    { "id": "personal",    "label": "私事 / Personal",         "color": "#4080C0" },
+    { "id": "military",    "label": "军事 / Military",         "color": "#8B4513" },
+    { "id": "cultural",    "label": "文化 / Cultural",         "color": "#6B8E23" },
+    { "id": "other",       "label": "其他 / Other",            "color": "#888888" }
   ]
 }

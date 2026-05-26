@@ -228,7 +228,7 @@ onUnmounted(() => {
           <div class="pop-label">Chrome</div>
           <div class="pop-toggle-group">
             <button class="pop-toggle" :class="{ on: settings.chromeTheme === 'writer' }" @click="settings.chromeTheme = 'writer'">✒ Writer</button>
-            <button class="pop-toggle" :class="{ on: settings.chromeTheme === 'nyt' }" @click="settings.chromeTheme = 'nyt'">📰 NYT</button>
+            <button class="pop-toggle" :class="{ on: settings.chromeTheme === 'editorial' }" @click="settings.chromeTheme = 'editorial'">📰 Editorial</button>
           </div>
         </div>
 

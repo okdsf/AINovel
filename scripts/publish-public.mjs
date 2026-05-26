@@ -56,14 +56,17 @@ const COPY_SCRIPT_FILES = [
   'scripts/public-gitignore.template.txt',
 ]
 const COPY_DATA_FILES = [
-  'data/archive/taxonomy.json',
+  // taxonomy.json deliberately NOT here — the private NovelWeb taxonomy
+  // contains brand-name outlets that must not ship publicly. The public
+  // taxonomy lives in scripts/demo-content/data/archive/taxonomy.json and
+  // is overlaid onto AINovel by the DEMO_CONTENT_DIR copy step below.
   'data/archive/events/_example.json',
   'data/archive/entities/_example.json',
 ]
 const COPY_DATA_DIRS = [
   'data/archive/pieces/_example',
 ]
-// Demo story (Murloc-at-WhiteHouse + CNN/Fox pieces). Lives outside data/
+// Demo story (Murloc-at-WhiteHouse + two fictional-outlet pieces). Lives outside data/
 // so it stays invisible to the NovelWeb dev app — only ships to AINovel.
 const DEMO_CONTENT_DIR = 'scripts/demo-content'
 const COPY_PUBLIC_FILES = [

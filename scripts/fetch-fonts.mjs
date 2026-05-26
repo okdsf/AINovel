@@ -137,7 +137,7 @@ const GOOGLE_FONTS = [
   { family: 'Zhi Mang Xing',         dir: 'zhimangxing',          file: 'ZhiMangXing-Regular' },
   { family: 'ZCOOL KuaiLe',          dir: 'zcoolkuaile',          file: 'ZCOOLKuaiLe-Regular' },
   { family: 'ZCOOL QingKe HuangYou', dir: 'zcoolqingkehuangyou',  file: 'ZCOOLQingKeHuangYou-Regular' },
-  // Blackletter for the NYT-style home wordmark
+  // Blackletter for the editorial-style home masthead wordmark
   { family: 'UnifrakturMaguntia',    dir: 'unifrakturmaguntia',   file: 'UnifrakturMaguntia-Book' },
 ]
 

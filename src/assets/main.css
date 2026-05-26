@@ -59,7 +59,7 @@
 /* ════════════════════════════════════════════════════════════════════════
    Chrome palette — two presets, switched via data-chrome on <html>.
    • writer (default): warm cream paper, ink, muted gold, 朱砂 emphasis
-   • nyt:              stark paper, hard black, NYT red emphasis
+   • editorial:        stark paper, hard black, emphasis red
    Dark mode overrides both via data-theme="dark".
    ════════════════════════════════════════════════════════════════════════ */
 :root,
@@ -100,7 +100,7 @@
   --t-med:       0.22s;
 }
 
-:root[data-chrome="nyt"] {
+:root[data-chrome="editorial"] {
   --bg:          #faf7ef;
   --bg-sidebar:  #f3eee0;
   --bg-card:     #ffffff;
@@ -111,7 +111,7 @@
 
   --accent:       #1a1a1a;       /* ink-on-ink — hover invert lives in btn rules */
   --accent-hover: #000000;
-  --hot:          #b30000;       /* NYT red */
+  --hot:          #b30000;       /* emphasis red */
 
   --border:      #e8e1d0;
   --rule:        #1a1a1a;
