@@ -16,18 +16,18 @@ NovelWeb 的核心创意：**一部小说有两条平行的叙事线**——
 
 为了让你**一打开就能看到这两条线长什么样**，公开版自带一份完整的演示资产。**全部都是 demo，整本删掉即可清空**：
 
-#### 1. 一本完整的小书：《示例：时空之门》
+#### 1. 两本完整的小书（中 / 英双语版）：《示例：时空之门》/ *Portal of Time*
 
 5 章，主角第一人称，讲一个本科生半夜借实验室触发了一扇时空门、误把电子游戏《魔兽世界》里的一只鱼人放到了现实里、然后**死活不敢承认是他干的**——尤其当 CNN 和 Fox News 把这事炒上了全美第一热度的时候。
 
-包含章节：
-- 第一章 · 我把那本书烧了
-- 第二章 · 鱼人不见了
-- 第三章 · 妈妈在楼上喊吃晚饭
-- 第四章 · Anderson Cooper 不会放弃
-- 第五章 · 如果有人问起
+包含章节（两个语言版本同步）：
+- 第一章 · 我把那本书烧了 / Ch. 1 · I Burned the Book
+- 第二章 · 鱼人不见了 / Ch. 2 · The Murloc Is Gone
+- 第三章 · 妈妈在楼上喊吃晚饭 / Ch. 3 · Mom Is Calling Me Up for Dinner
+- 第四章 · Anderson Cooper 不会放弃 / Ch. 4 · Anderson Cooper Will Not Give Up
+- 第五章 · 如果有人问起 / Ch. 5 · If Anyone Asks
 
-打开应用 → 点 rail 上的 **卷** (📖) → 选《示例：时空之门》→ 一章一章读。
+打开应用 → 点 rail 上的 **卷** (📖) → 选你想读的语言版本 → 一章一章读。
 
 #### 2. 配套的事件 + 两篇媒体报道
 
@@ -50,9 +50,10 @@ NovelWeb 的核心创意：**一部小说有两条平行的叙事线**——
 ### 怎么删掉 demo
 
 ```bash
-# 删整本 demo 书（包括所有章节）
+# 删两本 demo 书（包括所有章节）
 rm -rf data/books/book-murloc-demo
-# 从书目里移除 demo 条目（编辑这个文件，删除 book-murloc-demo 那一项）
+rm -rf data/books/book-murloc-demo-en
+# 从书目里移除两本 demo 条目（编辑这个文件，删除两项）
 nano data/books.json
 
 # 删事件 + 两篇报道
@@ -77,18 +78,18 @@ NovelWeb's core idea: **a novel runs on two parallel narrative tracks** —
 
 To let you **see what both tracks look like the moment you open it**, the public release ships a complete demo bundle. **It is all demo content; delete the whole thing to start fresh**:
 
-#### 1. A complete small book: *"Portal of Time" (示例：时空之门)*
+#### 1. Two complete small books (zh / en parallel editions): *Portal of Time* / 《示例：时空之门》
 
 5 chapters, first-person, about an undergraduate who triggers a portal in a borrowed lab one night, accidentally lets a murloc from *World of Warcraft* into the real world, and then **refuses to admit responsibility** — especially after CNN and Fox News turn the incident into the top US story.
 
-Chapters included:
-- Ch. 1 · I burned the book
-- Ch. 2 · The murloc is gone
-- Ch. 3 · Mom is calling for dinner upstairs
-- Ch. 4 · Anderson Cooper will not give up
-- Ch. 5 · If anyone asks
+Chapter list (the two language editions are synchronized):
+- Ch. 1 · I Burned the Book / 我把那本书烧了
+- Ch. 2 · The Murloc Is Gone / 鱼人不见了
+- Ch. 3 · Mom Is Calling Me Up for Dinner / 妈妈在楼上喊吃晚饭
+- Ch. 4 · Anderson Cooper Will Not Give Up / Anderson Cooper 不会放弃
+- Ch. 5 · If Anyone Asks / 如果有人问起
 
-Open the app → click **卷** (📖) on the rail → select *Portal of Time* → read chapter by chapter.
+Open the app → click **卷** (📖) on the rail → pick the language edition you want → read chapter by chapter.
 
 #### 2. Companion event + two media pieces
 
@@ -111,9 +112,10 @@ If you don't want this demo, **delete the whole thing** — commands below. Then
 ### How to remove the demo
 
 ```bash
-# Remove the demo book (includes all chapters)
+# Remove both demo books (includes all chapters)
 rm -rf data/books/book-murloc-demo
-# Remove its entry from the book registry (edit and delete the book-murloc-demo entry)
+rm -rf data/books/book-murloc-demo-en
+# Remove their entries from the book registry (edit and delete both entries)
 nano data/books.json
 
 # Remove the event + both media pieces

@@ -3,5 +3,10 @@
     "id": "book-murloc-demo",
     "title": "示例：时空之门",
     "description": "演示用·一个好奇宝宝、一只游戏里的鱼人、和一座不肯承认看到了什么的白宫。删除整本即可清空 demo。"
+  },
+  {
+    "id": "book-murloc-demo-en",
+    "title": "Portal of Time (demo)",
+    "description": "Demo · An anxious undergrad, a low-level monster from a popular game, and a basement that absolutely cannot be found out about. Delete the whole book to remove this demo."
   }
 ]

@@ -26,10 +26,12 @@ data/drafts/
 # data/chapters/ is legacy (engine reads from data/books/{id}/chapters/)
 data/chapters/
 
-# Books — ignore everything under data/books/ except the shipped demo
+# Books — ignore everything under data/books/ except the shipped demos (zh + en)
 data/books/*
 !data/books/book-murloc-demo/
 !data/books/book-murloc-demo/**
+!data/books/book-murloc-demo-en/
+!data/books/book-murloc-demo-en/**
 
 # Archive — ignore everything except the demo event + pieces + taxonomy
 data/archive/events/*
