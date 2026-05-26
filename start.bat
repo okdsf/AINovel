@@ -7,7 +7,9 @@ echo   正在启动...
 echo ========================================
 echo.
 
-if not exist node_modules (
+REM Use npm's own sentinel — only present after a successful install.
+REM Plain "if not exist node_modules" misses half-installed states.
+if not exist node_modules\.package-lock.json (
     echo   正在安装依赖，请稍候...
     npm install
     echo.
