@@ -1,21 +1,34 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNovelStore } from '../stores/novel'
+import { useSettingsStore } from '../stores/settings'
 
 const router = useRouter()
 const store = useNovelStore()
+const settings = useSettingsStore()
 
-// ── Aphorism rotation (random per page load) ─────────────────────────────
-const APHORISMS = [
-  { text: '文章千古事，得失寸心知。',                       source: '杜甫' },
+// ── Aphorisms — picked from the pool that matches the current locale ─────
+const APHORISMS_ZH = [
+  { text: '文章千古事，得失寸心知。', source: '杜甫' },
   { text: '笔下有山河，心中有日月。' },
   { text: '故事在被讲述之前，并不存在。' },
-  { text: 'Tell the truth, but tell it slant.',           source: 'Emily Dickinson' },
-  { text: 'A novel is a mirror walking down a road.',     source: 'Stendhal' },
-  { text: 'All the Stories Fit to Tell.' },
+  { text: '小说是一面在路上行走的镜子。', source: '司汤达' },
+  { text: '说出真相，但请斜着说。', source: 'Emily Dickinson' },
 ]
-const aphorism = APHORISMS[Math.floor(Math.random() * APHORISMS.length)]
+const APHORISMS_EN = [
+  { text: 'Tell the truth, but tell it slant.',                    source: 'Emily Dickinson' },
+  { text: 'A novel is a mirror walking down a road.',              source: 'Stendhal' },
+  { text: 'All the Stories Fit to Tell.' },
+  { text: 'Fiction is the lie through which we tell the truth.',   source: 'Albert Camus' },
+  { text: 'The story does not exist before it is told.' },
+]
+function pickAphorism() {
+  const pool = settings.locale === 'en' ? APHORISMS_EN : APHORISMS_ZH
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+const aphorism = ref(pickAphorism())
+watch(() => settings.locale, () => { aphorism.value = pickAphorism() })
 
 // ── Live clock ───────────────────────────────────────────────────────────
 const now = ref(new Date())
@@ -106,8 +119,8 @@ function go(path) { router.push(path) }
         <div class="meta-line">Vol. {{ volNo.vol }} &middot; No. {{ volNo.no }}</div>
       </div>
       <div class="meta-right">
-        <div class="meta-line">{{ dateEn }}</div>
-        <div class="meta-line">{{ dateZh }} &middot; {{ timeStr }}</div>
+        <div class="meta-line">{{ dateEn }} <span v-if="settings.locale === 'en'">&middot; {{ timeStr }}</span></div>
+        <div v-if="settings.locale !== 'en'" class="meta-line">{{ dateZh }} &middot; {{ timeStr }}</div>
       </div>
     </div>
 
@@ -116,7 +129,8 @@ function go(path) { router.push(path) }
     <!-- ── Wordmark ──────────────────────────────────────────── -->
     <header class="nyt-wordmark">
       <h1 class="wm-en">NovelWeb</h1>
-      <div class="wm-zh">小说编年制</div>
+      <div v-if="settings.locale !== 'en'" class="wm-zh">小说编年制</div>
+      <div v-else class="wm-en-sub">A Chronicle of Fiction</div>
     </header>
 
     <hr class="rule-double" />
@@ -278,6 +292,14 @@ function go(path) { router.push(path) }
   font-size: clamp(20px, 2.6vw, 32px);
   color: var(--ink-soft);
   letter-spacing: 0.18em;
+}
+.wm-en-sub {
+  margin-top: 14px;
+  font-family: 'Georgia', 'Source Serif Pro', 'Noto Serif SC', serif;
+  font-style: italic;
+  font-size: clamp(16px, 2vw, 24px);
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
 }
 
 /* ── Three-column main ──────────────────────────────────── */
