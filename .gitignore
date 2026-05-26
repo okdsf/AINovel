@@ -1,0 +1,48 @@
+node_modules/
+dist/
+*.log
+*.docx
+~$*
+.claude/
+.vscode/
+.private/
+
+# Build artifacts
+data/export/
+data/git-config.json
+
+# Downloaded reading fonts — run `npm run fonts` to fetch them.
+public/fonts/
+
+# ──────────────────────────────────────────────────────────────────────
+# Private content paths — kept empty in the public repo. The publish
+# pipeline only ships taxonomy.json and the _example/ seed files.
+# ──────────────────────────────────────────────────────────────────────
+
+# Books, chapters, conversations, drafts
+data/books.json
+data/meta.json
+data/books/
+data/chapters/
+data/drafts/
+
+# Archive — keep the example seeds + the demo story, ignore everything else.
+data/archive/events/*
+!data/archive/events/_example.json
+!data/archive/events/evt-murloc-whitehouse.json
+
+data/archive/pieces/*
+!data/archive/pieces/_example/
+!data/archive/pieces/piece-cnn-murloc-whitehouse/
+!data/archive/pieces/piece-fox-murloc-whitehouse/
+
+data/archive/entities/*
+!data/archive/entities/_example.json
+
+# Standalone HTML drafts / scratch reports
+Html/
+
+# Personal long-form notes (only the index page is shipped)
+notes/
+public/notes/*.html
+!public/notes/index.html

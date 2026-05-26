@@ -1,0 +1,14 @@
+{
+  "id": "piece-cnn-murloc-whitehouse",
+  "title": "CNN — Anderson Cooper 360° 实况：玫瑰园出现的「不明蓝色生物」",
+  "outlet": "cnn",
+  "reliability": "reported",
+  "author": "CNN 驻白宫记者团",
+  "world_date": "公元2026年5月25日",
+  "summary": "CNN Anderson Cooper 360° 实况转播。白宫玫瑰园凌晨监控录到一只与电子游戏《魔兽世界》中「鱼人宝宝」外形完全一致的生物。Secret Service 守口如瓶，但拒绝确认或否认。直播中一名 CNN 记者尝试向白宫新闻发言人提问，得到的回答是「我们正在核实」。节目末段连线西海岸大学物理系——校方否认任何「时空相关」实验。",
+  "primary_event": "evt-murloc-whitehouse",
+  "related_events": [],
+  "mentions": [],
+  "appearance_notes": {},
+  "entry_file": "index.html"
+}

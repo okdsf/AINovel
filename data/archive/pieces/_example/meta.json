@@ -1,0 +1,14 @@
+{
+  "id": "piece-example-cnn-envoy",
+  "title": "CNN — Dragon Court Bends Centuries-Old Protocol for First Republican Envoy",
+  "outlet": "cnn",
+  "reliability": "reported",
+  "author": "示例记者",
+  "world_date": "公元1899年",
+  "summary": "示例报道：CNN 视角的「侧立礼」事件。冷静专业、承认困惑、不下结论但框定问题——典型的 CNN 媒体人格。",
+  "primary_event": "evt-example-envoy",
+  "related_events": [],
+  "mentions": [],
+  "appearance_notes": {},
+  "entry_file": "index.html"
+}

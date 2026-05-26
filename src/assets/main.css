@@ -1,0 +1,514 @@
+/* ── Reading fonts ─────────────────────────────────────────────────────── */
+/* All fonts are served from public/fonts/, populated by `npm run fonts`. */
+/* If files are missing, browsers silently fall back through the font chain. */
+
+/* 霞鹜文楷 Screen — Unicode-range 分包 CSS，按字符子集按需加载 */
+@import url('/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css');
+
+/* 得意黑 Smiley Sans */
+@font-face {
+  font-family: 'Smiley Sans';
+  src: url('/fonts/SmileySans-Oblique.ttf.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+
+/* Google Fonts 中文手写体 — 单 TTF 完整版（取自 google/fonts 上游） */
+@font-face {
+  font-family: 'ZCOOL XiaoWei';
+  src: url('/fonts/ZCOOLXiaoWei-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ma Shan Zheng';
+  src: url('/fonts/MaShanZheng-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Long Cang';
+  src: url('/fonts/LongCang-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Liu Jian Mao Cao';
+  src: url('/fonts/LiuJianMaoCao-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Zhi Mang Xing';
+  src: url('/fonts/ZhiMangXing-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ZCOOL KuaiLe';
+  src: url('/fonts/ZCOOLKuaiLe-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ZCOOL QingKe HuangYou';
+  src: url('/fonts/ZCOOLQingKeHuangYou-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* Blackletter for the home masthead wordmark */
+@font-face {
+  font-family: 'UnifrakturMaguntia';
+  src: url('/fonts/UnifrakturMaguntia-Book.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Chrome palette — two presets, switched via data-chrome on <html>.
+   • writer (default): warm cream paper, ink, muted gold, 朱砂 emphasis
+   • nyt:              stark paper, hard black, NYT red emphasis
+   Dark mode overrides both via data-theme="dark".
+   ════════════════════════════════════════════════════════════════════════ */
+:root,
+:root[data-chrome="writer"] {
+  /* Background tiers (warmest at base, paler at center) */
+  --bg:          #f5f0e8;
+  --bg-sidebar:  #ede6d6;
+  --bg-card:     #fbf8f0;
+
+  /* Ink tiers */
+  --text:        #2a2520;
+  --text-soft:   #6b5a47;
+  --text-muted:  #a89684;
+
+  /* Interaction & emphasis */
+  --accent:       #8b6b3d;       /* muted gold — hover / active interaction */
+  --accent-hover: #a3814a;
+  --hot:          #8b0000;       /* 朱砂 — danger, hot story, lead */
+
+  /* Lines */
+  --border:      #d4c8b8;        /* soft, visible */
+  --rule:        #2a2520;        /* hairline ink rule */
+
+  /* Conversation tints */
+  --user-bg:     #ede8e0;
+  --ai-bg:       #f5ede0;
+
+  /* Type */
+  --font-reading: 'KaiTi', 'STKaiti', 'Noto Serif SC', serif;
+  --font-ui:      'Microsoft YaHei', 'PingFang SC', sans-serif;
+
+  /* Form */
+  --radius:      0px;            /* newspaper — square corners */
+
+  /* Motion */
+  --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast:      0.16s;
+  --t-med:       0.22s;
+}
+
+:root[data-chrome="nyt"] {
+  --bg:          #faf7ef;
+  --bg-sidebar:  #f3eee0;
+  --bg-card:     #ffffff;
+
+  --text:        #1a1a1a;
+  --text-soft:   #4a4a4a;
+  --text-muted:  #888;
+
+  --accent:       #1a1a1a;       /* ink-on-ink — hover invert lives in btn rules */
+  --accent-hover: #000000;
+  --hot:          #b30000;       /* NYT red */
+
+  --border:      #e8e1d0;
+  --rule:        #1a1a1a;
+
+  --user-bg:     #f0f0f0;
+  --ai-bg:       #fff8eb;
+}
+
+[data-theme="dark"] {
+  --bg:          #161412;
+  --bg-sidebar:  #1d1a17;
+  --bg-card:     #1a1715;
+
+  --text:        #e6dfd4;
+  --text-soft:   #a89684;
+  --text-muted:  #7a6b58;
+
+  --accent:      #d4a574;
+  --accent-hover:#e0b88a;
+  --hot:         #d97a6c;
+
+  --border:      rgba(212, 200, 168, 0.16);
+  --rule:        rgba(212, 200, 168, 0.45);
+
+  --user-bg:     #1e2528;
+  --ai-bg:       #2a2520;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* Links — newspaper style: text stays ink, hairline underline reveals on hover */
+a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+a:hover {
+  color: var(--hot);
+  border-bottom-color: currentColor;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 290px;
+  min-width: 290px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-family: var(--font-reading);
+  color: var(--text);
+}
+
+.sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px 18px;
+}
+
+.sidebar-footer {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 60px;
+  max-width: 900px;
+}
+
+.main-content.wide {
+  max-width: 100%;
+}
+
+/* ── Sidebar tree — newspaper section index ─────────────────────────── */
+.vol-item {
+  margin: 14px 0 4px;
+}
+
+.vol-title {
+  /* font-family inherits from body → --font-ui → reading font selection */
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 6px 0 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color var(--t-fast) var(--ease);
+}
+.vol-title:hover { color: var(--hot); }
+
+.ch-list {
+  margin-left: 0;
+  padding: 2px 0 6px;
+}
+
+.ch-item {
+  font-size: 13px;
+  padding: 6px 4px 6px 14px;
+  cursor: pointer;
+  color: var(--text-soft);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color var(--t-fast) var(--ease);
+}
+.ch-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 7px; bottom: 7px;
+  width: 2px;
+  background: transparent;
+  transition: background var(--t-fast) var(--ease);
+}
+.ch-item:hover {
+  color: var(--text);
+}
+.ch-item:hover::before {
+  background: var(--text-muted);
+}
+.ch-item.active {
+  color: var(--hot);
+  font-weight: 600;
+}
+.ch-item.active::before {
+  background: var(--hot);
+}
+
+/* ── Buttons — newspaper labels ─────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+  border: 1px solid var(--text);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--t-med) var(--ease),
+    color var(--t-med) var(--ease),
+    border-color var(--t-med) var(--ease);
+}
+.btn:hover {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn:disabled:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+}
+.btn-primary:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.btn-danger {
+  color: var(--hot);
+  border-color: var(--hot);
+}
+.btn-danger:hover {
+  background: var(--hot);
+  color: var(--bg);
+  border-color: var(--hot);
+}
+
+/* router-link buttons should look identical to .btn */
+a.btn { color: var(--text); }
+a.btn:hover { color: var(--bg); border-bottom: 1px solid var(--text); }
+a.btn-primary { color: var(--bg); }
+a.btn-primary:hover { color: var(--text); }
+
+/* Reading area */
+.reading-content {
+  font-family: var(--font-reading);
+  font-size: 18px;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.reading-content h1 { font-size: 28px; margin-bottom: 24px; }
+.reading-content h2 { font-size: 22px; margin: 20px 0 12px; }
+.reading-content p { margin-bottom: 16px; text-indent: 2em; }
+
+/* Conversation */
+.conv-turn {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.conv-turn.user {
+  background: var(--user-bg);
+  border-left: 3px solid #6ab0c7;
+}
+
+.conv-turn.assistant {
+  background: var(--ai-bg);
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-reading);
+}
+
+.conv-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-family: var(--font-ui);
+}
+
+/* Form-element font inheritance — buttons/inputs/selects/textarea don't
+   inherit font-family from ancestors by default. */
+button, input, select, textarea {
+  font-family: var(--font-ui);
+}
+
+/* ── Forms — hairline border, square corners ────────────────────────── */
+textarea, input[type="text"], select {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  resize: vertical;
+  background: var(--bg-card);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--t-fast) var(--ease);
+}
+textarea:focus,
+input[type="text"]:focus,
+select:focus {
+  border-color: var(--text);
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  color: var(--text-soft);
+}
+
+/* ── Stats — sectioned panels with hairline rules ─────────────────── */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 18px 22px;
+  margin-bottom: 14px;
+}
+.stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tabs — newspaper section navigation ─────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 26px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+  padding: 0;
+}
+.tab {
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--hot);
+}
+
+/* ── Modal — square + hairline ──────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--text) 35%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 28px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--text) 18%, transparent);
+}
+.modal h3 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 16px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+/* Scrollbar — thin newspaper-y */
+.sidebar-tree::-webkit-scrollbar,
+.main-content::-webkit-scrollbar { width: 8px; }
+.sidebar-tree::-webkit-scrollbar-thumb,
+.main-content::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+.sidebar-tree::-webkit-scrollbar-thumb:hover,
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 28%, transparent);
+}
+
+/* Selection */
+::selection { background: var(--hot); color: var(--bg); }
+
+/* Utility */
+.mt-4 { margin-top: 16px; }
+.mb-4 { margin-bottom: 16px; }
+.text-muted { color: var(--text-muted); }
+.text-center { text-align: center; }
