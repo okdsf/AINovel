@@ -204,6 +204,7 @@ a:hover {
   overflow-y: auto;
   padding: 40px 60px;
   max-width: 900px;
+  margin: 0 auto;
 }
 
 .main-content.wide {

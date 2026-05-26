@@ -11,7 +11,7 @@ const store = useNovelStore()
 const settings = useSettingsStore()
 const { t } = useI18n()
 
-const mainWide = computed(() => route.name === 'home')
+const mainWide = computed(() => true)
 
 // ── Rail interaction state ────────────────────────────────────────────
 const drawer  = ref('')   // '' | 'chapters'
@@ -38,6 +38,13 @@ function togglePopover(name) {
 function closeAll() {
   drawer.value = ''
   popover.value = ''
+}
+
+async function doShutdown() {
+  if (!confirm(t('nav.exitConfirm'))) return
+  try { await fetch('/api/shutdown', { method: 'POST' }) } catch {}
+  window.close()
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#888;">已关闭，可以关闭此标签页</div>'
 }
 
 // Keyboard: Cmd/Ctrl+B toggles chapter drawer; Esc closes everything
@@ -176,6 +183,14 @@ onUnmounted(() => {
           <line x1="14" y1="2" x2="14" y2="6"/>
           <line x1="8" y1="10" x2="8" y2="14"/>
           <line x1="16" y1="18" x2="16" y2="22"/>
+        </svg>
+      </button>
+
+      <button class="rail-btn rail-exit" @click="doShutdown" :title="t('nav.exit')">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
         </svg>
       </button>
     </nav>
@@ -339,6 +354,8 @@ onUnmounted(() => {
 .rail-btn:hover .rail-icon { transform: scale(1.05); }
 .rail-btn.active .rail-icon { transform: scale(1.03); }
 .rail-spacer { flex: 1; }
+.rail-exit { opacity: 0.4; }
+.rail-exit:hover { opacity: 1; color: #c44; }
 
 /* ── Backdrop ────────────────────────────────────────────────────── */
 .rail-backdrop {

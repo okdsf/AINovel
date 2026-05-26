@@ -215,6 +215,14 @@ async function main() {
     await copyDir(demoSrc, PUBLIC_DIR)
   }
 
+  // 3c. Patch package.json for public — remove private-only scripts
+  const pkgPath = path.join(PUBLIC_DIR, 'package.json')
+  const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf-8'))
+  pkg.name = 'ainovel'
+  pkg.scripts.dev = pkg.scripts.dev
+    .replace(/node scripts\/ensure-public\.mjs && /g, '')
+  await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+
   // 4. Substitute the public-safe .gitignore.
   const tpl = await fs.readFile(path.join(SOURCE_ROOT, 'scripts', 'public-gitignore.template.txt'), 'utf-8')
   await fs.writeFile(path.join(PUBLIC_DIR, '.gitignore'), tpl)

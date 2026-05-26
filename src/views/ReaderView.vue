@@ -31,6 +31,9 @@ const splitPoint = ref(-1)
 const newChapterTitle = ref('')
 const paragraphs = ref([])
 const immersive = ref(false)
+const PW_KEY = 'novelweb-preview-width'
+const previewWidth = ref(+(localStorage.getItem(PW_KEY) || 100))
+watch(previewWidth, v => localStorage.setItem(PW_KEY, String(v)))
 
 function findChapterTitle(chId) {
   if (!store.meta) return ''
@@ -196,11 +199,16 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
       </template>
       <span v-if="message" style="font-size: 13px; color: var(--accent);">{{ message }}</span>
       <span style="flex: 1;"></span>
+      <div v-if="mode === 'read'" class="preview-width-control">
+        <span class="pw-label">{{ t('immersive.width') }}</span>
+        <input type="range" class="pw-slider" min="50" max="100" step="5" v-model.number="previewWidth" />
+        <span class="pw-val">{{ previewWidth }}%</span>
+      </div>
       <ReadingSettings v-if="mode === 'read'" />
     </div>
 
     <!-- Read mode: theme-aware paper -->
-    <div v-if="mode === 'read'" class="reader-paper" :style="{ ...settings.themeVars }">
+    <div v-if="mode === 'read'" class="reader-paper" :style="{ ...settings.themeVars, maxWidth: previewWidth + '%' }">
       <h1 v-if="chapterDisplay.fullTitle" class="reading-content paper-title" :style="readingStyle">
         {{ chapterDisplay.fullTitle }}
       </h1>
@@ -271,7 +279,7 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
   border-radius: 6px;
   box-shadow: var(--rc-shadow, none);
   transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
-  margin-bottom: 24px;
+  margin: 0 auto 24px;
 }
 
 .paper-title {
@@ -348,5 +356,21 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
   color: white;
   font-weight: 600;
   font-family: var(--font-ui);
+}
+
+.preview-width-control {
+  display: flex; align-items: center; gap: 6px; margin-right: 8px;
+}
+.pw-label { font-size: 11px; color: var(--text-muted); }
+.pw-val { font-size: 11px; color: var(--text-muted); min-width: 32px; }
+.pw-slider {
+  width: 80px; height: 3px;
+  -webkit-appearance: none; appearance: none;
+  background: var(--border); border-radius: 2px;
+  outline: none; cursor: pointer;
+}
+.pw-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--accent); cursor: pointer;
 }
 </style>

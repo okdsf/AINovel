@@ -149,17 +149,22 @@ function refineSpreads() {
   const inner = innerRef.value
   if (!inner) return
 
-  let lastEl = inner.lastElementChild
-  while (lastEl && lastEl.getBoundingClientRect().width === 0) {
-    lastEl = lastEl.previousElementSibling
-  }
-  if (!lastEl) { totalSpreads.value = 1; return }
-
   const innerRect = inner.getBoundingClientRect()
-  const lastRect = lastEl.getBoundingClientRect()
-  const relLeft = lastRect.left - innerRect.left
   const colSpan = colWidthPx.value + GAP
-  const lastCol = Math.max(0, Math.floor(relLeft / colSpan))
+  let maxRight = 0
+
+  for (const el of inner.children) {
+    const rects = el.getClientRects()
+    for (const r of rects) {
+      if (r.width > 0) {
+        const right = r.right - innerRect.left
+        if (right > maxRight) maxRight = right
+      }
+    }
+  }
+
+  if (maxRight <= 0) { totalSpreads.value = 1; return }
+  const lastCol = Math.max(0, Math.ceil(maxRight / colSpan) - 1)
   totalSpreads.value = Math.max(1, Math.ceil((lastCol + 1) / 2))
 }
 
@@ -528,7 +533,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Book viewport (always rendered — never display:none) -->
-      <div ref="bookRef" class="immersive-book" @click="handleClick">
+      <div ref="bookRef" class="immersive-book" :style="{ width: settings.readerWidth + '%' }" @click="handleClick">
         <!-- Book spine (3D fold effect) -->
         <div class="book-spine"></div>
 
@@ -561,7 +566,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Edit mode overlay (on top of book) -->
-      <div v-if="editMode" class="immersive-edit">
+      <div v-if="editMode" class="immersive-edit" :style="{ width: settings.readerWidth + '%' }">
         <div class="edit-toolbar">
           <button class="edit-btn edit-btn-save" @click="saveEdit" :disabled="editSaving">
             {{ editSaving ? t('common.saving') : t('common.save') }}
@@ -663,6 +668,13 @@ onUnmounted(() => {
           </div>
           <div class="sp-row">
             <div class="sp-group sp-grow">
+              <span class="sp-label">{{ t('immersive.width') }}</span>
+              <input type="range" class="sp-slider" min="50" max="100" step="5" v-model.number="settings.readerWidth" />
+              <span class="sp-val">{{ settings.readerWidth }}%</span>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-group sp-grow">
               <span class="sp-label">{{ t('immersive.paper') }}</span>
               <div class="sp-themes">
                 <div
@@ -758,7 +770,7 @@ onUnmounted(() => {
 /* ── Book viewport ── */
 .immersive-book {
   flex: 1; margin: 0 auto;
-  width: calc(100% - 120px); max-width: 1200px;
+  max-width: 100%;
   overflow: hidden; position: relative;
   background: var(--rc-paper, #fffdf5);
   background-image: var(--rc-paper-image, none);
@@ -1091,6 +1103,16 @@ onUnmounted(() => {
   color: var(--rc-text, #333);
 }
 .sp-select:focus { border-color: var(--rc-accent, #8b6b3d); }
+.sp-slider {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.sp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--rc-accent, #8b6b3d);
+  cursor: pointer;
+}
 
 /* ── Color picker ── */
 .sp-color-wrap {
@@ -1214,7 +1236,7 @@ onUnmounted(() => {
   position: fixed;
   top: 40px; bottom: 40px;
   left: 50%; transform: translateX(-50%);
-  width: calc(100% - 120px); max-width: 1200px;
+  max-width: 100%;
   display: flex; flex-direction: column;
   gap: 0; overflow: hidden;
   z-index: 6;

@@ -20,5 +20,9 @@ echo   后端: http://localhost:3001
 echo.
 echo   按 Ctrl+C 停止服务
 echo ========================================
+
+REM Open browser after a short delay (gives server time to start)
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:5173"
+
 npm run dev
 pause

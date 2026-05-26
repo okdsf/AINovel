@@ -4,9 +4,22 @@ import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const marker = join(root, 'public', 'fonts', 'lxgw-wenkai-screen', 'lxgwwenkaiscreen.css')
+const fontsDir = join(root, 'public', 'fonts')
 
-if (!existsSync(marker)) {
-  console.log('\n⚠ public/fonts/ not found — running npm run fonts …\n')
-  execSync('node scripts/fetch-fonts.mjs', { cwd: root, stdio: 'inherit' })
+const markers = [
+  'lxgw-wenkai-screen/lxgwwenkaiscreen.css',
+  'SmileySans-Oblique.ttf.woff2',
+  'ZCOOLXiaoWei-Regular.ttf',
+  'UnifrakturMaguntia-Book.ttf',
+]
+
+const missing = markers.filter(f => !existsSync(join(fontsDir, f)))
+
+if (missing.length > 0) {
+  console.log(`\n⚠ ${missing.length} font(s) missing — downloading …\n`)
+  try {
+    execSync('node scripts/fetch-fonts.mjs', { cwd: root, stdio: 'inherit' })
+  } catch {
+    console.warn('  ⚠ Font download failed (no network?). Will retry on next startup.\n')
+  }
 }

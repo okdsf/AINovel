@@ -23,10 +23,20 @@ async function fetchStatus() {
   }
 }
 
+// --- Repo mode (private NovelWeb vs public AINovel) ---
+const repoMode = ref({ isPrivate: false, publicExists: false, publicDir: '' })
+
+async function fetchRepoMode() {
+  try {
+    const res = await fetch('/api/git/repo-mode')
+    repoMode.value = await res.json()
+  } catch {}
+}
+
 // --- Config ---
 const cfg = ref({
   remoteUrl: '', branch: '', userName: '', userEmail: '',
-  commitTemplate: 'update: {date}', forcePush: true,
+  commitTemplate: 'update: {date}', forcePush: true, syncPublic: false,
   _live: { remoteUrl: '', branch: '', userName: '', userEmail: '' }
 })
 const cfgLoading = ref(false)
@@ -57,7 +67,8 @@ async function saveConfig() {
         userName: cfg.value.userName,
         userEmail: cfg.value.userEmail,
         commitTemplate: cfg.value.commitTemplate,
-        forcePush: cfg.value.forcePush
+        forcePush: cfg.value.forcePush,
+        syncPublic: cfg.value.syncPublic
       })
     })
     const data = await res.json()
@@ -174,6 +185,7 @@ const stateBadge = computed(() => {
 })
 
 onMounted(() => {
+  fetchRepoMode()
   fetchStatus()
   fetchConfig()
   fetchVersions()
@@ -183,7 +195,11 @@ onMounted(() => {
 <template>
   <div style="max-width: 880px; margin: 0 auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 style="font-family: var(--font-reading); margin: 0;">{{ t('git.title') }}</h2>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <h2 style="font-family: var(--font-reading); margin: 0;">{{ t('git.title') }}</h2>
+        <span v-if="repoMode.isPrivate" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: #fff;">{{ t('git.modePrivate') }}</span>
+        <span v-else style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #3a8a3a; color: #fff;">{{ t('git.modePublic') }}</span>
+      </div>
       <button class="btn btn-sm" @click="fetchStatus(); fetchVersions()" :disabled="statusLoading">
         ⟳ {{ t('common.refresh') }}
       </button>
@@ -223,6 +239,16 @@ onMounted(() => {
         <button class="btn btn-primary" @click="doPush" :disabled="pushing">
           {{ pushing ? t('git.pushing') : t('git.push') }}
         </button>
+      </div>
+      <!-- Sync public toggle (only visible in private repo mode) -->
+      <div v-if="repoMode.isPrivate" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+        <label style="font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" v-model="cfg.syncPublic" @change="saveConfig" />
+          {{ t('git.syncPublic') }}
+        </label>
+        <span class="text-muted" style="font-size: 11px;">{{ t('git.syncPublicHint') }}</span>
+        <span v-if="repoMode.publicExists" style="font-size: 11px; color: #3a8a3a;">✓ AINovel</span>
+        <span v-else style="font-size: 11px; color: var(--text-muted);">{{ t('git.publicNotFound') }}</span>
       </div>
       <p v-if="pushMsg" style="font-size: 12px; color: var(--accent); margin: 8px 0 0;">{{ pushMsg }}</p>
     </section>

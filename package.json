@@ -1,10 +1,10 @@
 {
-  "name": "novelweb",
+  "name": "ainovel",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/ensure-fonts.mjs && concurrently \"vite\" \"node server/index.js\"",
+    "dev": "node scripts/ensure-fonts.mjs && concurrently --kill-others \"vite\" \"node server/index.js\"",
     "dev:front": "vite",
     "dev:server": "node server/index.js",
     "build": "vite build",

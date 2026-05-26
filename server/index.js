@@ -565,7 +565,8 @@ const DEFAULT_CONFIG = {
   userName: 'NovelWeb',                   // historical default
   userEmail: 'novelweb@local',            // historical default
   commitTemplate: 'update: {date}',
-  forcePush: true                         // historical behaviour
+  forcePush: true,                        // historical behaviour
+  syncPublic: false                       // also publish to AINovel public repo on push
 };
 
 async function readSavedConfig() {
@@ -592,7 +593,7 @@ async function effectiveConfig() {
     userEmail: saved.userEmail || liveEmail || DEFAULT_CONFIG.userEmail,
     commitTemplate: saved.commitTemplate || DEFAULT_CONFIG.commitTemplate,
     forcePush: saved.forcePush !== undefined ? saved.forcePush : DEFAULT_CONFIG.forcePush,
-    // also expose the live (read-only) values so the UI can show "currently:"
+    syncPublic: saved.syncPublic !== undefined ? saved.syncPublic : DEFAULT_CONFIG.syncPublic,
     _live: { remoteUrl: liveRemote, branch: liveBranch, userName: liveName, userEmail: liveEmail }
   };
 }
@@ -637,6 +638,37 @@ app.put('/api/git/config', async (req, res) => {
   }
 });
 
+// Detect private (NovelWeb) vs public (AINovel) repo mode
+app.get('/api/git/repo-mode', async (req, res) => {
+  const check = async (p) => { try { await fs.access(p); return true } catch { return false } }
+  const isPrivate = await check(path.join(DATA_DIR, '..', '.private'))
+  const publicDir = path.resolve(DATA_DIR, '..', '..', 'AINovel')
+  const publicExists = await check(path.join(publicDir, '.git'))
+  res.json({ isPrivate, publicExists, publicDir })
+});
+
+// Run publish-public.mjs to sync code to AINovel
+app.post('/api/git/publish-public', async (req, res) => {
+  try {
+    const { message } = req.body || {};
+    const script = path.join(DATA_DIR, '..', 'scripts', 'publish-public.mjs');
+    const args = ['--no-push'];
+    if (message) args.push('-m', message);
+    else args.push('-m', `sync: ${formatDate(new Date())}`);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execFileAsync = promisify(execFile);
+    const { stdout, stderr } = await execFileAsync('node', [script, ...args], {
+      cwd: path.join(DATA_DIR, '..'),
+      timeout: 60000,
+    });
+    res.json({ ok: true, message: 'AINovel 已同步', output: (stdout + '\n' + stderr).trim() });
+  } catch (e) {
+    const output = (e.stdout || '') + '\n' + (e.stderr || '');
+    res.status(500).json({ error: e.message, output: output.trim() });
+  }
+});
+
 app.post('/api/git/push', async (req, res) => {
   try {
     const cfg = await effectiveConfig();
@@ -658,18 +690,37 @@ app.post('/api/git/push', async (req, res) => {
     const pushArgs = ['push'];
     if (cfg.forcePush) pushArgs.push('--force');
     pushArgs.push('origin', cfg.branch);
+    let resultMsg = '';
     if (committed) {
       await git(...pushArgs);
-      res.json({ ok: true, message: `已推送 ${cfg.branch}: ${commitMsg}` });
+      resultMsg = `已推送 ${cfg.branch}: ${commitMsg}`;
     } else {
       const ahead = await gitSafe('rev-list', '--count', `origin/${cfg.branch}..HEAD`);
       if (parseInt(ahead || '0', 10) > 0) {
         await git(...pushArgs);
-        res.json({ ok: true, message: `已${cfg.forcePush ? '强制' : ''}推送本地提交到 ${cfg.branch}` });
+        resultMsg = `已${cfg.forcePush ? '强制' : ''}推送本地提交到 ${cfg.branch}`;
       } else {
         res.json({ ok: true, message: '没有需要提交或推送的更改' });
+        return;
       }
     }
+    // If syncPublic is enabled, also publish to AINovel
+    let publicMsg = '';
+    if (cfg.syncPublic) {
+      try {
+        const script = path.join(DATA_DIR, '..', 'scripts', 'publish-public.mjs');
+        const { execFile } = await import('node:child_process');
+        const { promisify } = await import('node:util');
+        const execFileAsync = promisify(execFile);
+        await execFileAsync('node', [script, '-m', commitMsg, '--no-push'], {
+          cwd: path.join(DATA_DIR, '..'), timeout: 60000,
+        });
+        publicMsg = ' · AINovel 已同步';
+      } catch (pe) {
+        publicMsg = ` · AINovel 同步失败: ${pe.message}`;
+      }
+    }
+    res.json({ ok: true, message: resultMsg + publicMsg });
   } catch (e) {
     res.status(500).json({ error: e.message || String(e) });
   }
@@ -1185,6 +1236,12 @@ app.delete('/api/prompt-groups/:id', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// Shutdown endpoint — kills all related processes for clean exit
+app.post('/api/shutdown', (req, res) => {
+  res.json({ ok: true, message: 'Shutting down…' });
+  setTimeout(() => process.exit(0), 300);
 });
 
 const PORT = 3001;
