@@ -71,7 +71,6 @@ const COPY_DATA_DIRS = [
 const DEMO_CONTENT_DIR = 'scripts/demo-content'
 const COPY_PUBLIC_FILES = [
   'public/icons.svg',
-  'public/notes/index.html',
 ]
 
 // ── argv parsing ──────────────────────────────────────────────────────
@@ -180,10 +179,14 @@ async function main() {
     run('git', ['clean', '-fd'], { cwd: PUBLIC_DIR })
   }
 
-  // 2. Wipe public working tree (preserve .git/).
+  // 2. Wipe public working tree (preserve .git/ and node_modules/).
+  //    node_modules belongs to the user's local install — wiping it would force
+  //    a re-install every publish and risks EPERM when files are held by a
+  //    running dev server.
   console.log('Wiping target working tree...')
+  const PRESERVE = new Set(['.git', 'node_modules'])
   for (const entry of await fs.readdir(PUBLIC_DIR)) {
-    if (entry === '.git') continue
+    if (PRESERVE.has(entry)) continue
     await fs.rm(path.join(PUBLIC_DIR, entry), { recursive: true, force: true })
   }
 

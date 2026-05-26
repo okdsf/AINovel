@@ -138,16 +138,6 @@ onUnmounted(() => {
         </svg>
       </RouterLink>
 
-      <a href="/notes/index.html" class="rail-btn" :title="t('nav.notes')">
-        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
-          <path d="M8 2v20"/>
-          <path d="M12 7h6"/>
-          <path d="M12 11h6"/>
-          <path d="M12 15h6"/>
-        </svg>
-      </a>
-
       <RouterLink to="/stats" class="rail-btn" :class="{ active: isStats }" :title="t('nav.stats')" @click="closeAll">
         <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 3v18h18"/>

@@ -42,7 +42,6 @@ data/archive/entities/*
 # Standalone HTML drafts / scratch reports
 Html/
 
-# Personal long-form notes (only the index page is shipped)
+# Personal long-form notes — the entire notes feature is omitted from public
 notes/
-public/notes/*.html
-!public/notes/index.html
+public/notes/
