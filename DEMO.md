@@ -1,7 +1,7 @@
-# 示例故事 / Demo Story
+# 示例资产 / Demo Bundle
 
-> 这个文件是 NovelWeb 公开版自带的演示资产，演示**双线叙事**架构在实践里到底是什么样。
-> This file ships with the public release of NovelWeb to demonstrate the **dual-track narrative** architecture in practice.
+> 这个文件说明 NovelWeb 公开版自带的演示资产——**一本完整的小书 + 两篇媒体报道**。
+> This file describes the demo bundle shipped with the public release — **a small complete book + two media pieces**.
 
 ---
 
@@ -9,64 +9,60 @@
 
 ### 这是什么？
 
-NovelWeb 不是一个"普通的写作工具"。它的核心创意是：**一部小说，应该有两条平行的叙事线**。
+NovelWeb 的核心创意：**一部小说有两条平行的叙事线**——
 
-- **章节线**——你直接给读者看的正文
-- **报道线**——在你那个世界里，不同媒体如何报道章节里发生的事
+- **章节线**（小说正文）
+- **报道线**（在你那个世界里，不同媒体如何报道章节里发生的事）
 
-读者只看章节也能读完。但想深入世界的人会去翻 archive，看不同立场的媒体（CNN、Fox News、NYT、Daily Mail、Guardian、社交平台、官方声明……）用完全不同的语气节奏报道同一件事——拼凑出比小说本身更立体的"那个世界"。
+为了让你**一打开就能看到这两条线长什么样**，公开版自带一份完整的演示资产。**全部都是 demo，整本删掉即可清空**：
 
-### Demo 故事
+#### 1. 一本完整的小书：《示例：时空之门》
 
-公开版自带一个 demo 事件 `evt-murloc-whitehouse`（**白宫玫瑰园鱼人事件**）：
+5 章，主角第一人称，讲一个本科生半夜借实验室触发了一扇时空门、误把电子游戏《魔兽世界》里的一只鱼人放到了现实里、然后**死活不敢承认是他干的**——尤其当 CNN 和 Fox News 把这事炒上了全美第一热度的时候。
 
-> **2026 年 5 月 25 日凌晨 3 点 14 分。**白宫玫瑰园的安保摄像头记录到一只身高 60 厘米的蓝色两栖生物——外形与电子游戏《魔兽世界》中的"鱼人宝宝"一致。Secret Service 试图按"未识别生物入侵"流程处理，但内部手册里**没有任何与该类型生物相关的条款**。
+包含章节：
+- 第一章 · 我把那本书烧了
+- 第二章 · 鱼人不见了
+- 第三章 · 妈妈在楼上喊吃晚饭
+- 第四章 · Anderson Cooper 不会放弃
+- 第五章 · 如果有人问起
 
-围绕这一事件，公开版自带**两篇报道**：
+打开应用 → 点 rail 上的 **卷** (📖) → 选《示例：时空之门》→ 一章一章读。
 
-1. **CNN — Anderson Cooper 360° 实况转播**
-2. **Fox News — 黄金时段评论员节目**
+#### 2. 配套的事件 + 两篇媒体报道
 
-**它们的语气节奏完全不同**——但这是 demo 作者写的两种风格表演，**不构成对 CNN 或 Fox News 这两家媒体本身特质的判断**。任何真实媒体在不同时间、不同节目、不同记者手下都有大量内部差异，我们这里只是借两个名字演示"语气节奏的差异"是什么意思。
+- **事件**：`evt-murloc-whitehouse` 「白宫玫瑰园鱼人事件」
+- **CNN — Anderson Cooper 360° 实况转播**
+- **Fox News — 黄金时段评论员节目**
 
-打开应用 → 点 rail 上的"志"（archive）→ 找到该事件 → 翻两篇报道，体验**同一件荒诞事在两种不同语气下如何被组装**。
+打开 rail 上的 **志** (📜 archive) 即可看到该事件 + 两篇报道，体验**同一件荒诞事**在两种不同语气下如何被组装。
 
-### 配套章节开头（示例）
+> ⚠️ 关于真实媒体名字：本 demo 是 demo 作者写的两种风格表演，**不构成对 CNN 或 Fox News 这两家真实媒体特质的判断**。NovelWeb 不对任何具体媒体的报道特质做评价——它只是承认现实里报道生态的丰富性。
 
-如果你要把这件事写进小说，主线视角可以这么开篇——
+### 这套 demo 的设计意图
 
-```text
-第一章 · 别提我的名字
+整个项目是**分形**的：
 
-我刚把那本破书烧了。地下室还有焦味。
+> 引擎里装着一本书 ←→ 这本书在演示"引擎可以装一本书"
 
-门确实被打开过。不到三秒，关上了。但那三秒里，
-有东西从那边过来了。
+如果你不想看这个 demo，**整本删掉就好**——下面有命令。然后从 UI 里创建自己的第一本书，开始写。
 
-不止鱼人。但只有鱼人被电视拍到了——电视上播：
-白宫玫瑰园里，有只 60 厘米高的蓝色东西，
-正发出 mrrgglglglgl 的叫声。
-
-我现在还能听到楼上电视机的声音。Anderson Cooper
-正在问 Sarah Lin 一些 Sarah Lin 不会回答的问题。
-
-妈妈在楼上喊吃晚饭。
-
-我决定先吃完饭。
-```
-
-这段文字**不在仓库里**——只是给你看的示例。你的故事完全不必走这个方向。
-
-### 怎么删掉这个 demo 开始你自己的
+### 怎么删掉 demo
 
 ```bash
+# 删整本 demo 书（包括所有章节）
+rm -rf data/books/book-murloc-demo
+# 从书目里移除 demo 条目（编辑这个文件，删除 book-murloc-demo 那一项）
+nano data/books.json
+
+# 删事件 + 两篇报道
 rm data/archive/events/evt-murloc-whitehouse.json
 rm -rf data/archive/pieces/piece-cnn-murloc-whitehouse
 rm -rf data/archive/pieces/piece-fox-murloc-whitehouse
+
+# 删这份说明
 rm DEMO.md
 ```
-
-然后在应用 UI 里创建你自己的第一本书，开始写。
 
 ---
 
@@ -74,61 +70,57 @@ rm DEMO.md
 
 ### What is this?
 
-NovelWeb is not just a writing tool. Its core idea: **a novel should run on two parallel narrative tracks.**
+NovelWeb's core idea: **a novel runs on two parallel narrative tracks** —
 
-- **The chapter line** — the prose you show readers directly
-- **The reportage line** — how different outlets in your story-world cover what happens in the chapters
+- **The chapter track** (the prose)
+- **The reportage track** (how different outlets in your story-world cover the events from the chapters)
 
-A reader can stick to the chapters and finish the story. But the curious reader can dig into the archive, see how different outlets (CNN, Fox News, NYT, Daily Mail, Guardian, social platforms, official statements…) cover the same event with different tonal cadences, and assemble a more dimensional "your world" than the novel alone provides.
+To let you **see what both tracks look like the moment you open it**, the public release ships a complete demo bundle. **It is all demo content; delete the whole thing to start fresh**:
 
-### The demo content
+#### 1. A complete small book: *"Portal of Time" (示例：时空之门)*
 
-The public release ships with one demo event: `evt-murloc-whitehouse` (the **"Murloc in the White House Rose Garden" incident**).
+5 chapters, first-person, about an undergraduate who triggers a portal in a borrowed lab one night, accidentally lets a murloc from *World of Warcraft* into the real world, and then **refuses to admit responsibility** — especially after CNN and Fox News turn the incident into the top US story.
 
-> **At 03:14 EDT on May 25, 2026,** White House Rose Garden security cameras recorded a 60 cm tall blue amphibious creature — visually identical to a "murloc baby" from World of Warcraft. The Secret Service tried to apply standard "unidentified-animal intrusion" protocols, but there was **no clause in the playbook covering fantasy-game creatures.**
+Chapters included:
+- Ch. 1 · I burned the book
+- Ch. 2 · The murloc is gone
+- Ch. 3 · Mom is calling for dinner upstairs
+- Ch. 4 · Anderson Cooper will not give up
+- Ch. 5 · If anyone asks
 
-Two pieces ship covering this same event:
+Open the app → click **卷** (📖) on the rail → select *Portal of Time* → read chapter by chapter.
 
-1. **CNN — Anderson Cooper 360° live coverage**
-2. **Fox News — primetime opinion segment**
+#### 2. Companion event + two media pieces
 
-**Their tonal cadences are very different** — but these are two stylistic performances written by the demo author, **not claims about the characteristics of CNN or Fox News as outlets**. Any real outlet contains an enormous range of voices across shows, reporters, and eras. We're just borrowing two well-known names to demonstrate what "different tonal cadence on the same event" means.
+- **Event**: `evt-murloc-whitehouse` — the "Murloc in the White House Rose Garden" incident
+- **CNN — Anderson Cooper 360° live coverage**
+- **Fox News — primetime opinion segment**
 
-Launch the app → click the "志" (archive) glyph on the rail → open the event → read both pieces. You're experiencing the core mechanic: **the same absurd event, refracted through two different tonal frames.**
+Click **志** (📜 archive) on the rail to see the event + both pieces side by side. Experience **the same absurd event** refracted through two different tonal frames.
 
-### Sample chapter opening (for inspiration)
+> ⚠️ About the real outlet names: these two pieces are stylistic performances written by the demo author. They are **not claims about the characteristics of CNN or Fox News as real outlets**. NovelWeb makes no claims about the characteristics of any specific outlet — it just acknowledges the diversity of the real reportage ecosystem.
 
-If you wanted to write this event into a novel, the main-thread perspective could open something like:
+### Why this demo is shaped this way
 
-```text
-Chapter One — Don't say my name
+The whole project is **fractal**:
 
-I just burned the book. The basement still smells like smoke.
+> The engine contains a book ←→ this book demonstrates "the engine can contain a book"
 
-The door did open. For less than three seconds, then it closed.
-But in those three seconds, something came through.
+If you don't want this demo, **delete the whole thing** — commands below. Then create your own first book from the UI.
 
-More than just the murloc. But only the murloc was caught on TV.
-TV says: White House Rose Garden, 60 cm tall, blue,
-making a sound like mrrgglglglgl.
-
-I can still hear the TV upstairs. Anderson Cooper is asking
-Sarah Lin questions Sarah Lin won't answer.
-
-Mom is calling me up for dinner.
-
-I decide to eat first.
-```
-
-This text **is not in the repo** — just shown as a sketch. Your story does not have to go in this direction.
-
-### How to delete this demo and start your own
+### How to remove the demo
 
 ```bash
+# Remove the demo book (includes all chapters)
+rm -rf data/books/book-murloc-demo
+# Remove its entry from the book registry (edit and delete the book-murloc-demo entry)
+nano data/books.json
+
+# Remove the event + both media pieces
 rm data/archive/events/evt-murloc-whitehouse.json
 rm -rf data/archive/pieces/piece-cnn-murloc-whitehouse
 rm -rf data/archive/pieces/piece-fox-murloc-whitehouse
+
+# Remove this document
 rm DEMO.md
 ```
-
-Then create your first book through the app UI and start writing.

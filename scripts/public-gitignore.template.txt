@@ -15,33 +15,35 @@ data/git-config.json
 public/fonts/
 
 # ──────────────────────────────────────────────────────────────────────
-# Private content paths — kept empty in the public repo. The publish
-# pipeline only ships taxonomy.json and the _example/ seed files.
+# Content is private by default. The shipped demo book is the one
+# exception — its files are explicitly whitelisted below. To track your
+# own writing in this clone, edit this file.
 # ──────────────────────────────────────────────────────────────────────
 
-# Books, chapters, conversations, drafts
-data/books.json
 data/meta.json
-data/books/
-data/chapters/
 data/drafts/
 
-# Archive — keep the example seeds + the demo story, ignore everything else.
+# data/chapters/ is legacy (engine reads from data/books/{id}/chapters/)
+data/chapters/
+
+# Books — ignore everything under data/books/ except the shipped demo
+data/books/*
+!data/books/book-murloc-demo/
+!data/books/book-murloc-demo/**
+
+# Archive — ignore everything except the demo event + pieces + taxonomy
 data/archive/events/*
-!data/archive/events/_example.json
 !data/archive/events/evt-murloc-whitehouse.json
 
 data/archive/pieces/*
-!data/archive/pieces/_example/
 !data/archive/pieces/piece-cnn-murloc-whitehouse/
 !data/archive/pieces/piece-fox-murloc-whitehouse/
 
 data/archive/entities/*
-!data/archive/entities/_example.json
 
 # Standalone HTML drafts / scratch reports
 Html/
 
-# Personal long-form notes — the entire notes feature is omitted from public
+# Personal long-form notes — entire feature omitted from public
 notes/
 public/notes/

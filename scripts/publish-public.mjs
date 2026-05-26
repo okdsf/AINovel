@@ -57,15 +57,11 @@ const COPY_SCRIPT_FILES = [
 ]
 const COPY_DATA_FILES = [
   // taxonomy.json deliberately NOT here — the private NovelWeb taxonomy
-  // contains brand-name outlets that must not ship publicly. The public
-  // taxonomy lives in scripts/demo-content/data/archive/taxonomy.json and
-  // is overlaid onto AINovel by the DEMO_CONTENT_DIR copy step below.
-  'data/archive/events/_example.json',
-  'data/archive/entities/_example.json',
+  // is the user's own taxonomy. The public version lives in
+  // scripts/demo-content/data/archive/taxonomy.json and is overlaid
+  // onto AINovel by the DEMO_CONTENT_DIR copy step below.
 ]
-const COPY_DATA_DIRS = [
-  'data/archive/pieces/_example',
-]
+const COPY_DATA_DIRS = []
 // Demo story (Murloc-at-WhiteHouse + two fictional-outlet pieces). Lives outside data/
 // so it stays invisible to the NovelWeb dev app — only ships to AINovel.
 const DEMO_CONTENT_DIR = 'scripts/demo-content'
@@ -179,14 +175,22 @@ async function main() {
     run('git', ['clean', '-fd'], { cwd: PUBLIC_DIR })
   }
 
-  // 2. Wipe public working tree (preserve .git/ and node_modules/).
-  //    node_modules belongs to the user's local install — wiping it would force
-  //    a re-install every publish and risks EPERM when files are held by a
-  //    running dev server.
+  // 2. Wipe public working tree.
+  //    Preserve .git/ (history), node_modules/ (user's install — wiping
+  //    forces re-install + risks EPERM from a running dev server), and
+  //    public/fonts/ (~40MB of downloaded fonts — wiping forces re-download).
   console.log('Wiping target working tree...')
-  const PRESERVE = new Set(['.git', 'node_modules'])
+  const PRESERVE_TOP = new Set(['.git', 'node_modules'])
   for (const entry of await fs.readdir(PUBLIC_DIR)) {
-    if (PRESERVE.has(entry)) continue
+    if (PRESERVE_TOP.has(entry)) continue
+    if (entry === 'public') {
+      // Selectively wipe inside public/, preserving fonts/
+      for (const sub of await fs.readdir(path.join(PUBLIC_DIR, 'public'))) {
+        if (sub === 'fonts') continue
+        await fs.rm(path.join(PUBLIC_DIR, 'public', sub), { recursive: true, force: true })
+      }
+      continue
+    }
     await fs.rm(path.join(PUBLIC_DIR, entry), { recursive: true, force: true })
   }
 

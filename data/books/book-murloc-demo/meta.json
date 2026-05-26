@@ -1,0 +1,43 @@
+{
+  "title": "示例：时空之门",
+  "description": "演示用·一个好奇宝宝、一只游戏里的鱼人、和一座不肯承认看到了什么的白宫。",
+  "volumes": [
+    {
+      "id": "vol-001",
+      "title": "卷一 · 别提我的名字",
+      "chapters": [
+        {
+          "id": "ch-001",
+          "title": "我把那本书烧了",
+          "events": ["evt-murloc-whitehouse"],
+          "world_date": "公元2026年5月25日 凌晨",
+          "visibility": "normal"
+        },
+        {
+          "id": "ch-002",
+          "title": "鱼人不见了",
+          "world_date": "公元2026年5月25日 上午",
+          "visibility": "normal"
+        },
+        {
+          "id": "ch-003",
+          "title": "妈妈在楼上喊吃晚饭",
+          "world_date": "公元2026年5月25日 傍晚",
+          "visibility": "normal"
+        },
+        {
+          "id": "ch-004",
+          "title": "Anderson Cooper 不会放弃",
+          "world_date": "公元2026年5月25日 夜",
+          "visibility": "normal"
+        },
+        {
+          "id": "ch-005",
+          "title": "如果有人问起",
+          "world_date": "公元2026年5月26日 凌晨",
+          "visibility": "normal"
+        }
+      ]
+    }
+  ]
+}
