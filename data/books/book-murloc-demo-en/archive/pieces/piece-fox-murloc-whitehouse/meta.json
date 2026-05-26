@@ -1,0 +1,14 @@
+{
+  "id": "piece-fox-murloc-whitehouse",
+  "title": "FOX — A Murloc Just Walked Into the Rose Garden. Where Is This Administration's Limit? (demo)",
+  "outlet": "fox-news",
+  "reliability": "reported",
+  "author": "Fox News Editorial Panel (demo)",
+  "world_date": "May 25, 2026",
+  "summary": "Demo piece. Written for the fictional event evt-murloc-whitehouse in the style of a Fox News primetime opinion segment. Demonstration asset only; does not constitute a claim about Fox News's actual editorial characteristics.",
+  "primary_event": "evt-murloc-whitehouse",
+  "related_events": [],
+  "mentions": [],
+  "appearance_notes": {},
+  "entry_file": "index.html"
+}

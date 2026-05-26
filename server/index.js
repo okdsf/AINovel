@@ -740,10 +740,12 @@ app.post('/api/git/pull', async (req, res) => {
 });
 
 // === Archive (multi-POV world-building layer) ===
-const ARCHIVE_DIR = path.join(DATA_DIR, 'archive');
-const EVENTS_DIR = path.join(ARCHIVE_DIR, 'events');
-const PIECES_DIR = path.join(ARCHIVE_DIR, 'pieces');
-const TAXONOMY_PATH = path.join(ARCHIVE_DIR, 'taxonomy.json');
+// Archive is now per-book: data/books/{bookId}/archive/{events,pieces,entities}/
+function bookArchiveDir(bookId)  { return path.join(BOOKS_DIR, bookId, 'archive'); }
+function bookEventsDir(bookId)   { return path.join(bookArchiveDir(bookId), 'events'); }
+function bookPiecesDir(bookId)   { return path.join(bookArchiveDir(bookId), 'pieces'); }
+function bookEntitiesDir(bookId) { return path.join(bookArchiveDir(bookId), 'entities'); }
+function bookTaxonomyPath(bookId){ return path.join(bookArchiveDir(bookId), 'taxonomy.json'); }
 
 async function listJsonFiles(dir) {
   try {
@@ -758,14 +760,15 @@ async function listJsonFiles(dir) {
   } catch { return []; }
 }
 
-async function listPieces() {
+async function listPiecesForBook(bookId) {
+  const piecesDir = bookPiecesDir(bookId);
   try {
-    const dirs = await fs.readdir(PIECES_DIR, { withFileTypes: true });
+    const dirs = await fs.readdir(piecesDir, { withFileTypes: true });
     const out = [];
     for (const d of dirs) {
       if (!d.isDirectory()) continue;
       try {
-        const raw = await fs.readFile(path.join(PIECES_DIR, d.name, 'meta.json'), 'utf-8');
+        const raw = await fs.readFile(path.join(piecesDir, d.name, 'meta.json'), 'utf-8');
         out.push(JSON.parse(raw));
       } catch {}
     }
@@ -773,25 +776,22 @@ async function listPieces() {
   } catch { return []; }
 }
 
-// Scan all book chapters that declare events.
-async function listTaggedChapters() {
+// Scan the chapters of a single book that declare events.
+async function listTaggedChaptersForBook(bookId) {
   const out = [];
-  const books = await readBooksIndex();
-  for (const b of books) {
-    let meta;
-    try { meta = await readMeta(b.id); } catch { continue; }
-    for (const vol of meta.volumes || []) {
-      for (const ch of vol.chapters || []) {
-        const events = ch.events || [];
-        if (events.length === 0) continue;
-        out.push({
-          bookId: b.id, bookTitle: meta.title,
-          volId: vol.id, volTitle: vol.title,
-          chId: ch.id, chTitle: ch.title,
-          events,
-          world_date: ch.world_date || null
-        });
-      }
+  let meta;
+  try { meta = await readMeta(bookId); } catch { return out; }
+  for (const vol of meta.volumes || []) {
+    for (const ch of vol.chapters || []) {
+      const events = ch.events || [];
+      if (events.length === 0) continue;
+      out.push({
+        bookId, bookTitle: meta.title,
+        volId: vol.id, volTitle: vol.title,
+        chId: ch.id, chTitle: ch.title,
+        events,
+        world_date: ch.world_date || null
+      });
     }
   }
   return out;
@@ -830,23 +830,25 @@ function dateRank(s) {
   return Number.POSITIVE_INFINITY;
 }
 
-app.get('/api/archive/taxonomy', async (req, res) => {
+app.get('/api/books/:bookId/archive/taxonomy', async (req, res) => {
   try {
-    res.json(JSON.parse(await fs.readFile(TAXONOMY_PATH, 'utf-8')));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    res.json(JSON.parse(await fs.readFile(bookTaxonomyPath(req.params.bookId), 'utf-8')));
+  } catch (e) {
+    if (e.code === 'ENOENT') return res.json({});
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.get('/api/archive/overview', async (req, res) => {
+app.get('/api/books/:bookId/archive/overview', async (req, res) => {
   try {
+    const { bookId } = req.params;
     const [events, pieces, chapters, taxonomy] = await Promise.all([
-      listJsonFiles(EVENTS_DIR),
-      listPieces(),
-      listTaggedChapters(),
-      fs.readFile(TAXONOMY_PATH, 'utf-8').then(JSON.parse).catch(() => ({}))
+      listJsonFiles(bookEventsDir(bookId)),
+      listPiecesForBook(bookId),
+      listTaggedChaptersForBook(bookId),
+      fs.readFile(bookTaxonomyPath(bookId), 'utf-8').then(JSON.parse).catch(() => ({}))
     ]);
-    // Sort events by world_date for timeline display
     events.sort((a, b) => dateRank(a.world_date) - dateRank(b.world_date));
-    // Attach piece count to each event
     for (const evt of events) {
       evt.pieceCount = pieces.filter(p =>
         p.primary_event === evt.id || (p.related_events || []).includes(evt.id)
@@ -857,13 +859,14 @@ app.get('/api/archive/overview', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/archive/event/:id', async (req, res) => {
+app.get('/api/books/:bookId/archive/event/:id', async (req, res) => {
   try {
-    const eventPath = path.join(EVENTS_DIR, `${req.params.id}.json`);
+    const { bookId } = req.params;
+    const eventPath = path.join(bookEventsDir(bookId), `${req.params.id}.json`);
     const event = JSON.parse(await fs.readFile(eventPath, 'utf-8'));
     const [pieces, chapters] = await Promise.all([
-      listPieces(),
-      listTaggedChapters()
+      listPiecesForBook(bookId),
+      listTaggedChaptersForBook(bookId)
     ]);
     const relatedPieces = pieces.filter(p =>
       p.primary_event === req.params.id || (p.related_events || []).includes(req.params.id)
@@ -878,9 +881,9 @@ app.get('/api/archive/event/:id', async (req, res) => {
   }
 });
 
-app.get('/api/archive/piece/:id', async (req, res) => {
+app.get('/api/books/:bookId/archive/piece/:id', async (req, res) => {
   try {
-    const metaPath = path.join(PIECES_DIR, req.params.id, 'meta.json');
+    const metaPath = path.join(bookPiecesDir(req.params.bookId), req.params.id, 'meta.json');
     res.json(JSON.parse(await fs.readFile(metaPath, 'utf-8')));
   } catch (e) {
     if (e.code === 'ENOENT') return res.status(404).json({ error: 'Piece not found' });
@@ -888,40 +891,37 @@ app.get('/api/archive/piece/:id', async (req, res) => {
   }
 });
 
-// Delete a piece (single report)
-app.delete('/api/archive/piece/:id', async (req, res) => {
+app.delete('/api/books/:bookId/archive/piece/:id', async (req, res) => {
   try {
-    const pieceDir = path.join(PIECES_DIR, req.params.id);
+    const pieceDir = path.join(bookPiecesDir(req.params.bookId), req.params.id);
     await fs.rm(pieceDir, { recursive: true, force: true });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Delete an event and all its associated pieces
-app.delete('/api/archive/event/:id', async (req, res) => {
+app.delete('/api/books/:bookId/archive/event/:id', async (req, res) => {
   try {
+    const { bookId } = req.params;
     const eventId = req.params.id;
-    const eventPath = path.join(EVENTS_DIR, `${eventId}.json`);
-    // Find all pieces linked to this event
-    const pieces = await listPieces();
+    const eventPath = path.join(bookEventsDir(bookId), `${eventId}.json`);
+    const pieces = await listPiecesForBook(bookId);
     const linked = pieces.filter(p =>
       p.primary_event === eventId || (p.related_events || []).includes(eventId)
     );
-    // Delete each linked piece directory
     for (const p of linked) {
-      await fs.rm(path.join(PIECES_DIR, p.id), { recursive: true, force: true }).catch(() => {});
+      await fs.rm(path.join(bookPiecesDir(bookId), p.id), { recursive: true, force: true }).catch(() => {});
     }
-    // Delete the event JSON
     await fs.unlink(eventPath).catch(() => {});
     res.json({ ok: true, deletedPieces: linked.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Serve rendered HTML of a piece (for iframe embed)
-app.get('/pieces-render/:id/:file', async (req, res) => {
+// Serve a piece's rendered HTML (for iframe embed). Book-scoped now.
+app.get('/pieces-render/:bookId/:id/:file', async (req, res) => {
   try {
-    const filePath = path.join(PIECES_DIR, req.params.id, req.params.file);
-    if (!filePath.startsWith(PIECES_DIR)) return res.status(400).end();
+    const baseDir = bookPiecesDir(req.params.bookId);
+    const filePath = path.join(baseDir, req.params.id, req.params.file);
+    if (!filePath.startsWith(baseDir)) return res.status(400).end();
     res.sendFile(filePath);
   } catch (e) { res.status(500).send(e.message); }
 });

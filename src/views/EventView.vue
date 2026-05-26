@@ -2,10 +2,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
+import { useNovelStore } from '../stores/novel'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const store = useNovelStore()
 const data = ref(null)
 const taxonomy = ref(null)
 const loading = ref(true)
@@ -14,10 +16,12 @@ const error = ref('')
 async function load(id) {
   loading.value = true
   error.value = ''
+  if (!store.currentBookId) { loading.value = false; return }
   try {
+    const bookId = store.currentBookId
     const [r1, r2] = await Promise.all([
-      fetch(`/api/archive/event/${id}`),
-      fetch('/api/archive/taxonomy')
+      fetch(`/api/books/${bookId}/archive/event/${id}`),
+      fetch(`/api/books/${bookId}/archive/taxonomy`)
     ])
     if (!r1.ok) {
       const err = await r1.json()
@@ -61,7 +65,7 @@ const reliabilityOrder = ['canon', 'official', 'reported', 'rumor', 'propaganda'
 async function deletePiece(pieceId) {
   const p = data.value.pieces.find(x => x.id === pieceId)
   if (!confirm(t('event.deletePieceConfirm', { title: p?.title || pieceId }))) return
-  await fetch(`/api/archive/piece/${pieceId}`, { method: 'DELETE' })
+  await fetch(`/api/books/${store.currentBookId}/archive/piece/${pieceId}`, { method: 'DELETE' })
   data.value.pieces = data.value.pieces.filter(x => x.id !== pieceId)
 }
 
@@ -72,7 +76,7 @@ async function deleteCurrentEvent() {
     ? t('archive.deleteEventWithPieces', { name: evt.display_name, count })
     : t('archive.deleteEvent', { name: evt.display_name })
   if (!confirm(msg)) return
-  await fetch(`/api/archive/event/${evt.id}`, { method: 'DELETE' })
+  await fetch(`/api/books/${store.currentBookId}/archive/event/${evt.id}`, { method: 'DELETE' })
   router.push('/archive')
 }
 </script>
@@ -115,7 +119,7 @@ async function deleteCurrentEvent() {
               </div>
               <div class="ev-pieces-grid">
                 <div v-for="p in piecesByReliability[r]" :key="p.id" class="ev-piece-card-wrap">
-                  <a :href="`/pieces-render/${p.id}/${p.entry_file}`"
+                  <a :href="`/pieces-render/${store.currentBookId}/${p.id}/${p.entry_file}`"
                      target="_blank"
                      class="ev-piece-card">
                     <div class="ev-piece-h">

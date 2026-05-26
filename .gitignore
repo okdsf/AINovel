@@ -15,15 +15,21 @@ data/git-config.json
 public/fonts/
 
 # ──────────────────────────────────────────────────────────────────────
-# Content is private by default. The shipped demo book is the one
-# exception — its files are explicitly whitelisted below. To track your
-# own writing in this clone, edit this file.
+# Content is private by default. The shipped demo books are the one
+# exception — their files are explicitly whitelisted below. To track
+# your own writing in this clone, edit this file.
+#
+# Archive (events, pieces, entities, taxonomy) lives PER-BOOK at
+# data/books/{bookId}/archive/ — it ships or doesn't ship along with
+# the book that contains it.
 # ──────────────────────────────────────────────────────────────────────
 
 data/meta.json
 data/drafts/
 
-# data/chapters/ is legacy (engine reads from data/books/{id}/chapters/)
+# Legacy: data/chapters/ at root was the pre-per-book chapter store.
+# Engine now reads from data/books/{id}/chapters/, but ignore any
+# leftover root-level chapters.
 data/chapters/
 
 # Books — ignore everything under data/books/ except the shipped demos (zh + en)
@@ -32,16 +38,6 @@ data/books/*
 !data/books/book-murloc-demo/**
 !data/books/book-murloc-demo-en/
 !data/books/book-murloc-demo-en/**
-
-# Archive — ignore everything except the demo event + pieces + taxonomy
-data/archive/events/*
-!data/archive/events/evt-murloc-whitehouse.json
-
-data/archive/pieces/*
-!data/archive/pieces/piece-cnn-murloc-whitehouse/
-!data/archive/pieces/piece-fox-murloc-whitehouse/
-
-data/archive/entities/*
 
 # Standalone HTML drafts / scratch reports
 Html/

@@ -1,0 +1,14 @@
+{
+  "id": "piece-cnn-murloc-whitehouse",
+  "title": "CNN — Anderson Cooper 360° Live: 'Unidentified Blue Creature' in the Rose Garden (demo)",
+  "outlet": "cnn",
+  "reliability": "reported",
+  "author": "CNN White House Press Corps (demo)",
+  "world_date": "May 25, 2026",
+  "summary": "Demo piece. Written for the fictional event evt-murloc-whitehouse as a rolling-news live-broadcast transcript in the style of CNN Anderson Cooper 360°. Demonstration asset only; does not constitute a claim about CNN's actual editorial characteristics.",
+  "primary_event": "evt-murloc-whitehouse",
+  "related_events": [],
+  "mentions": [],
+  "appearance_notes": {},
+  "entry_file": "index.html"
+}

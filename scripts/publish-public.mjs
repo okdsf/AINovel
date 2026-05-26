@@ -55,15 +55,13 @@ const COPY_SCRIPT_FILES = [
   'scripts/publish-public.mjs',
   'scripts/public-gitignore.template.txt',
 ]
-const COPY_DATA_FILES = [
-  // taxonomy.json deliberately NOT here — the private NovelWeb taxonomy
-  // is the user's own taxonomy. The public version lives in
-  // scripts/demo-content/data/archive/taxonomy.json and is overlaid
-  // onto AINovel by the DEMO_CONTENT_DIR copy step below.
-]
-const COPY_DATA_DIRS = []
-// Demo story (Murloc-at-WhiteHouse + two fictional-outlet pieces). Lives outside data/
-// so it stays invisible to the NovelWeb dev app — only ships to AINovel.
+// Nothing under data/ in the private NovelWeb working tree ships directly.
+// Archive is now per-book (data/books/{id}/archive/), so it travels with
+// whichever book it belongs to. The demo books and their archives live under
+// scripts/demo-content/ and are overlaid onto AINovel by the DEMO_CONTENT_DIR
+// copy step below.
+const COPY_DATA_FILES = []
+const COPY_DATA_DIRS  = []
 const DEMO_CONTENT_DIR = 'scripts/demo-content'
 const COPY_PUBLIC_FILES = [
   'public/icons.svg',

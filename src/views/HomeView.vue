@@ -73,11 +73,12 @@ async function loadDrafts() {
   } catch {}
 }
 
-// ── Archive: most recent events ──────────────────────────────────────────
+// ── Archive: most recent events for current book ─────────────────────────
 const events = ref([])
 async function loadArchive() {
+  if (!store.currentBookId) { events.value = []; return }
   try {
-    const res = await fetch('/api/archive/overview')
+    const res = await fetch(`/api/books/${store.currentBookId}/archive/overview`)
     const data = await res.json()
     events.value = (data.events || []).slice(0, 3)
   } catch {}

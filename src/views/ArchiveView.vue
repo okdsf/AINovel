@@ -1,23 +1,31 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '../i18n'
+import { useNovelStore } from '../stores/novel'
 
 const { t } = useI18n()
+const store = useNovelStore()
 const data = ref(null)
 const loading = ref(true)
 const error = ref('')
 const filterCat = ref('all')
 
-onMounted(async () => {
+async function loadArchive() {
+  if (!store.currentBookId) { data.value = null; loading.value = false; return }
+  loading.value = true
+  error.value = ''
   try {
-    const res = await fetch('/api/archive/overview')
+    const res = await fetch(`/api/books/${store.currentBookId}/archive/overview`)
     data.value = await res.json()
   } catch (e) {
     error.value = e.message
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadArchive)
+watch(() => store.currentBookId, loadArchive)
 
 const categoryMap = computed(() => {
   const m = {}
@@ -66,7 +74,7 @@ async function deleteEvent(evt) {
     ? t('archive.deleteEventWithPieces', { name: evt.display_name, count })
     : t('archive.deleteEvent', { name: evt.display_name })
   if (!confirm(msg)) return
-  await fetch(`/api/archive/event/${evt.id}`, { method: 'DELETE' })
+  await fetch(`/api/books/${store.currentBookId}/archive/event/${evt.id}`, { method: 'DELETE' })
   data.value.events = data.value.events.filter(e => e.id !== evt.id)
 }
 </script>
