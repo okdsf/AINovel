@@ -652,7 +652,7 @@ app.post('/api/git/publish-public', async (req, res) => {
   try {
     const { message } = req.body || {};
     const script = path.join(DATA_DIR, '..', 'scripts', 'publish-public.mjs');
-    const args = ['--no-push'];
+    const args = [];
     if (message) args.push('-m', message);
     else args.push('-m', `sync: ${formatDate(new Date())}`);
     const { execFile } = await import('node:child_process');
@@ -712,7 +712,7 @@ app.post('/api/git/push', async (req, res) => {
         const { execFile } = await import('node:child_process');
         const { promisify } = await import('node:util');
         const execFileAsync = promisify(execFile);
-        await execFileAsync('node', [script, '-m', commitMsg, '--no-push'], {
+        await execFileAsync('node', [script, '-m', commitMsg], {
           cwd: path.join(DATA_DIR, '..'), timeout: 60000,
         });
         publicMsg = ' · AINovel 已同步';
