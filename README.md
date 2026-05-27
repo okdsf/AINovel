@@ -40,6 +40,9 @@
 
 ### 快速开始
 
+最简单：双击 `start.bat`（Windows）或 `bash start.sh`（macOS / Linux）。脚本会自动检查 Node.js（>= 18），缺失会通过 winget / Homebrew / apt 等自动装；装好依赖后启动 dev 服务并打开浏览器。
+
+手动方式：
 ```bash
 git clone https://github.com/okdsf/AINovel.git
 cd AINovel
@@ -137,6 +140,9 @@ Real-world media is inherently diverse — for any given event, different outlet
 
 ### Quick start
 
+Easiest: double-click `start.bat` on Windows, or run `bash start.sh` on macOS / Linux. The script auto-checks Node.js (>= 18), auto-installs it via winget / Homebrew / apt if missing, installs dependencies, then launches the dev server.
+
+Manual:
 ```bash
 git clone https://github.com/okdsf/AINovel.git
 cd AINovel

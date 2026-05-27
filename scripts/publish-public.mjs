@@ -44,6 +44,7 @@ const COPY_FILES = [
   'package-lock.json',
   'vite.config.js',
   'start.bat',
+  'start.sh',
 ]
 const COPY_DIRS_RECURSIVE = [
   'src',
@@ -243,6 +244,13 @@ async function main() {
 
   // 6. Stage + show diff stats.
   run('git', ['add', '-A'], { cwd: PUBLIC_DIR })
+  // Mark shell launcher executable in git index (Windows working tree doesn't
+  // carry the bit; without this, Linux/macOS clones of AINovel land with
+  // a non-executable start.sh).
+  if (existsSync(path.join(PUBLIC_DIR, 'start.sh'))) {
+    run('git', ['update-index', '--chmod=+x', 'start.sh'],
+      { cwd: PUBLIC_DIR, allowFail: true })
+  }
   const status = (run('git', ['status', '--porcelain'], { cwd: PUBLIC_DIR, capture: true }) || '').trim()
   if (!status) {
     console.log('\nAINovel is already in sync — nothing to commit.')

@@ -8,58 +8,84 @@ echo   Starting / 正在启动...
 echo ========================================
 echo.
 
+set MIN_NODE_MAJOR=18
+
 REM ────────────────────────────────────────────────────────────────────
-REM Step 1 — Check Node.js
+REM Step 1 — Check Node.js presence + version (>= 18 for Vite 8)
 REM ────────────────────────────────────────────────────────────────────
 where node >nul 2>&1
 if errorlevel 1 (
-    echo [!] Node.js not detected on this machine.
-    echo [!] 未检测到 Node.js。
-    echo.
-
-    REM Check whether winget is available (built-in on Win 10 1809+ / Win 11)
-    where winget >nul 2>&1
-    if errorlevel 1 (
-        echo Cannot auto-install — winget unavailable on this Windows.
-        echo 无法自动安装 —— 当前 Windows 没有 winget。
-        echo.
-        echo Please install Node.js manually from:
-        echo 请手动从以下地址安装 Node.js：
-        echo.
-        echo     https://nodejs.org/
-        echo.
-        echo Then re-run start.bat. / 安装后重新运行 start.bat。
-        pause
-        exit /b 1
-    )
-
-    echo Attempting to install Node.js via winget...
-    echo 正在通过 winget 自动安装 Node.js...
-    echo.
-    winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
-    if errorlevel 1 (
-        echo.
-        echo [X] winget install failed. Please install Node.js manually:
-        echo [X] winget 安装失败，请手动安装 Node.js：
-        echo     https://nodejs.org/
-        pause
-        exit /b 1
-    )
-
-    echo.
-    echo ========================================
-    echo [✓] Node.js installed successfully.
-    echo [✓] Node.js 安装完成。
-    echo.
-    echo PATH was updated by the installer — this script needs to restart
-    echo to pick up the new PATH. Please double-click start.bat again.
-    echo.
-    echo 系统 PATH 已更新，本脚本需要重启以加载新 PATH。
-    echo 请重新双击 start.bat。
-    echo ========================================
-    pause
-    exit /b 0
+    call :NodeMissing
+    exit /b !errorlevel!
 )
+
+REM Parse "v20.10.0" → 20
+for /f "tokens=*" %%i in ('node --version 2^>nul') do set NODE_VER=%%i
+set NODE_VER=%NODE_VER:v=%
+for /f "tokens=1 delims=." %%a in ("%NODE_VER%") do set NODE_MAJOR=%%a
+
+if %NODE_MAJOR% LSS %MIN_NODE_MAJOR% (
+    echo [!] Node.js %NODE_VER% is too old.
+    echo [!] Node.js %NODE_VER% 版本太旧（需要 %MIN_NODE_MAJOR% 或以上）。
+    echo.
+    call :TryWingetInstall force
+    exit /b !errorlevel!
+)
+goto :NodeOK
+
+:NodeMissing
+echo [!] Node.js not detected on this machine.
+echo [!] 未检测到 Node.js。
+echo.
+call :TryWingetInstall fresh
+exit /b !errorlevel!
+
+:TryWingetInstall
+where winget >nul 2>&1
+if errorlevel 1 (
+    echo Cannot auto-install — winget unavailable on this Windows.
+    echo 无法自动安装 —— 当前 Windows 没有 winget。
+    echo.
+    echo Please install / upgrade Node.js manually from:
+    echo 请手动安装/升级 Node.js：
+    echo     https://nodejs.org/
+    pause
+    exit /b 1
+)
+
+if "%1"=="force" (
+    echo Upgrading Node.js via winget...
+    echo 通过 winget 升级 Node.js...
+    winget install OpenJS.NodeJS.LTS --force --silent --accept-package-agreements --accept-source-agreements
+) else (
+    echo Installing Node.js via winget...
+    echo 通过 winget 安装 Node.js...
+    winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
+)
+
+if errorlevel 1 (
+    echo.
+    echo [X] winget operation failed. Please install Node.js manually:
+    echo [X] winget 操作失败，请手动安装 Node.js：
+    echo     https://nodejs.org/
+    pause
+    exit /b 1
+)
+
+echo.
+echo ========================================
+echo [✓] Node.js operation complete.
+echo [✓] Node.js 操作完成。
+echo.
+echo PATH was updated — restart this script to pick up the new PATH.
+echo PATH 已更新，请重启脚本以加载新 PATH。
+echo Please double-click start.bat again. / 请重新双击 start.bat。
+echo ========================================
+pause
+exit /b 0
+
+:NodeOK
+echo [✓] Node.js %NODE_VER% detected.
 
 REM ────────────────────────────────────────────────────────────────────
 REM Step 2 — Check node_modules (use npm's own install-success sentinel)
