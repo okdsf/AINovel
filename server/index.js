@@ -1244,7 +1244,7 @@ app.post('/api/shutdown', (req, res) => {
   setTimeout(() => process.exit(0), 300);
 });
 
-const PORT = 3001;
+const PORT = parseInt(process.env.NOVELWEB_API_PORT || '3001', 10);
 app.listen(PORT, () => {
   console.log(`NovelWeb API running on http://localhost:${PORT}`);
 });

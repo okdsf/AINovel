@@ -107,17 +107,33 @@ if not exist node_modules\.package-lock.json (
 )
 
 REM --------------------------------------------------------------------
-REM Step 3 - Launch (fonts auto-downloaded by scripts/ensure-fonts.mjs)
+REM Step 3 - Pick free ports so multiple instances can coexist
+REM --------------------------------------------------------------------
+REM Defaults; overwritten below if find-ports.mjs reports free ports.
+set NOVELWEB_WEB_PORT=5173
+set NOVELWEB_API_PORT=3001
+
+REM find-ports.mjs probes upward from the defaults and prints KEY=VALUE lines.
+REM If another NovelWeb is already running, it hands back the next free pair.
+for /f "tokens=1,2 delims==" %%a in ('node scripts\find-ports.mjs 2^>nul') do set %%a=%%b
+
+if not "%NOVELWEB_WEB_PORT%"=="5173" (
+    echo [i] Ports 5173/3001 busy -- another instance is running.
+    echo     Using free ports instead.
+)
+
+REM --------------------------------------------------------------------
+REM Step 4 - Launch (fonts auto-downloaded by scripts/ensure-fonts.mjs)
 REM --------------------------------------------------------------------
 echo.
-echo Frontend: http://localhost:5173
-echo Backend:  http://localhost:3001
+echo Frontend: http://localhost:%NOVELWEB_WEB_PORT%
+echo Backend:  http://localhost:%NOVELWEB_API_PORT%
 echo.
 echo Press Ctrl+C to stop.
 echo ========================================
 
 REM Open browser after a short delay (gives the server time to start)
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:5173"
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:%NOVELWEB_WEB_PORT%"
 
 call npm run dev
 pause

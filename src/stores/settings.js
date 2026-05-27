@@ -154,6 +154,9 @@ export const useSettingsStore = defineStore('settings', () => {
   // 'editorial' = stark paper + black ink + emphasis red. Affects sidebar/buttons/tabs/forms,
   // independent of the per-reading-area --rc-* theme.
   const chromeTheme = ref('writer')
+  // Home (front-page) layout: 'broadsheet' = sober NYT-style masthead (default),
+  // 'tabloid' = loud gossip-rag splash. Only affects HomeView; nothing else.
+  const homeStyle = ref('broadsheet')
   // ↑ stored per-locale so switching language doesn't blow away the other one's pick
 
   // Load from localStorage
@@ -177,6 +180,9 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.chromeTheme === 'writer' || data.chromeTheme === 'editorial') {
           chromeTheme.value = data.chromeTheme
         }
+        if (data.homeStyle === 'broadsheet' || data.homeStyle === 'tabloid') {
+          homeStyle.value = data.homeStyle
+        }
       }
     } catch {}
   }
@@ -194,6 +200,7 @@ export const useSettingsStore = defineStore('settings', () => {
       customBgColor: customBgColor.value,
       readerWidth: readerWidth.value,
       chromeTheme: chromeTheme.value,
+      homeStyle: homeStyle.value,
     }))
   }
 
@@ -215,7 +222,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // Watch and persist
-  watch([fontId, fontSize, lineHeight, darkMode, themeId, locale, uiFontIds, customTextColor, customBgColor, chromeTheme], () => {
+  watch([fontId, fontSize, lineHeight, darkMode, themeId, locale, uiFontIds, customTextColor, customBgColor, chromeTheme, homeStyle], () => {
     save()
     applyTheme()
   }, { deep: true })
@@ -270,6 +277,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fontId, fontSize, lineHeight, darkMode, themeId, locale,
     customTextColor, customBgColor, readerWidth,
     chromeTheme,
+    homeStyle,
     fonts: FONTS,
     themes: THEMES,
     uiFontList,

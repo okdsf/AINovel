@@ -137,10 +137,26 @@ if [ ! -f node_modules/.package-lock.json ]; then
     npm install || { echo "[X] npm install failed. / npm install 失败"; exit 1; }
 fi
 
-# ── Step 3: launch ────────────────────────────────────────────────────
+# ── Step 3: pick free ports so multiple instances can coexist ──────────
+# find-ports.mjs probes upward from the defaults (5173 / 3001) and prints
+# KEY=VALUE lines. If another NovelWeb is already running, it hands back the
+# next free pair; vite.config.js + server/index.js read these env vars so the
+# frontend proxy always targets this instance's backend.
+NOVELWEB_WEB_PORT=5173
+NOVELWEB_API_PORT=3001
+while IFS='=' read -r k v; do
+    [ -n "$k" ] && export "$k=$v"
+done < <(node scripts/find-ports.mjs 2>/dev/null)
+
+if [ "$NOVELWEB_WEB_PORT" != "5173" ]; then
+    echo "[i] Ports 5173/3001 busy — another instance is running."
+    echo "    Using free ports instead. / 检测到已有实例，改用空闲端口。"
+fi
+
+# ── Step 4: launch ────────────────────────────────────────────────────
 echo ""
-echo "Frontend / 前端: http://localhost:5173"
-echo "Backend  / 后端: http://localhost:3001"
+echo "Frontend / 前端: http://localhost:$NOVELWEB_WEB_PORT"
+echo "Backend  / 后端: http://localhost:$NOVELWEB_API_PORT"
 echo ""
 echo "Press Ctrl+C to stop. / 按 Ctrl+C 停止服务"
 echo "========================================"
@@ -149,9 +165,9 @@ echo "========================================"
 (
     sleep 3
     if have open; then
-        open http://localhost:5173 2>/dev/null
+        open "http://localhost:$NOVELWEB_WEB_PORT" 2>/dev/null
     elif have xdg-open; then
-        xdg-open http://localhost:5173 2>/dev/null
+        xdg-open "http://localhost:$NOVELWEB_WEB_PORT" 2>/dev/null
     fi
 ) &
 

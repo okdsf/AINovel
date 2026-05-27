@@ -100,10 +100,141 @@ async function loadArchive() {
 onMounted(() => { loadDrafts(); loadArchive() })
 
 function go(path) { router.push(path) }
+
+// ── Tabloid front-page copy (locale-aware) ───────────────────────────────
+// The loud alternate masthead reuses the same data; only the voice changes.
+const tb = computed(() => settings.locale === 'en' ? {
+  free:        'FREE',
+  tagline:     'ALL THE STORIES FIT TO SHOUT',
+  flashL:      'WORLD\nFIRST',
+  flashR:      'INSIDE\nSCOOP',
+  splashKicker:'★ WORLD EXCLUSIVE ★',
+  sticker:     'READ\nON →',
+  leadDek:     'The latest chapter stops dead right HERE — tap in and keep the story spilling!',
+  leadEmpty:   'NO CHAPTERS YET — your very first line is tomorrow’s front-page splash!',
+  comingUp:    'SPILLING SOON',
+  draftsEmpty: 'Nothing in the drafts pile. Quiet… too quiet.',
+  allDrafts:   'SEE EVERY DRAFT →',
+  bigGossip:   'THIS WEEK’S BOMBSHELLS',
+  archiveEmpty:'The archive’s keeping its mouth shut.',
+  fullArchive: 'OPEN THE FILES →',
+  footer:      'PRINTED HOT OFF THE PRESS',
+} : {
+  free:        '免费',
+  tagline:     '你想知道的，这一页全给你抖出来！',
+  flashL:      '全球\n首发',
+  flashR:      '独家\n内幕',
+  splashKicker:'★ 头版独家爆料 ★',
+  sticker:     '读\n下去 →',
+  leadDek:     '最新一章刚写到这儿就猛地停住——点开继续，别让故事憋着！',
+  leadEmpty:   '还没有章节！你落下的第一笔，就是明天的头版头条。',
+  comingUp:    '即将爆料',
+  draftsEmpty: '草稿堆里空空如也，安静得反常。',
+  allDrafts:   '抖出全部草稿 →',
+  bigGossip:   '本周大瓜',
+  archiveEmpty:'编年志暂时守口如瓶。',
+  fullArchive: '翻开全部卷宗 →',
+  footer:      '趁热印好 · 刚下印机',
+})
+
+// Event-category flags — colors per the project taxonomy, loud-printed.
+const CAT_COLORS = {
+  geopolitics: '#d11d1d', personal: '#1656c0', military: '#8a5a2b',
+  cultural: '#2f9e44', other: '#777',
+}
+const CAT_LABELS = {
+  zh: { geopolitics: '地缘', personal: '私事', military: '军事', cultural: '文化', other: '其他' },
+  en: { geopolitics: 'WORLD', personal: 'PERSONAL', military: 'MILITARY', cultural: 'CULTURE', other: 'MISC' },
+}
+function catColor(c) { return CAT_COLORS[c] || CAT_COLORS.other }
+function catLabel(c) { return (CAT_LABELS[settings.locale] || CAT_LABELS.zh)[c] || (CAT_LABELS[settings.locale] || CAT_LABELS.zh).other }
 </script>
 
 <template>
-  <div class="nyt-home">
+  <!-- ════════════════════════════════════════════════════════════
+       TABLOID front page — loud gossip-rag splash. Opt-in via settings.
+       ════════════════════════════════════════════════════════════ -->
+  <div v-if="settings.homeStyle === 'tabloid'" class="tabloid-home">
+    <!-- ── Flash bar: price · date · issue ───────────────────── -->
+    <div class="tb-flashbar">
+      <span class="tb-price">{{ tb.free }}</span>
+      <span class="tb-flashbar-date">{{ dateEn }} · {{ timeStr }}</span>
+      <span class="tb-issue">VOL {{ volNo.vol }} · NO. {{ volNo.no }}</span>
+    </div>
+
+    <!-- ── Masthead: blackletter wordmark on red, flanked by bursts ── -->
+    <header class="tb-masthead">
+      <div class="tb-burst tb-burst-l"><span>{{ tb.flashL }}</span></div>
+      <h1 class="tb-wordmark">NovelWeb</h1>
+      <div class="tb-burst tb-burst-r"><span>{{ tb.flashR }}</span></div>
+    </header>
+    <div class="tb-subbar">{{ tb.tagline }}</div>
+
+    <!-- ── Lead splash ───────────────────────────────────────── -->
+    <main class="tb-splash" :class="{ 'is-clickable': !!leadStory }" @click="leadStory && go(`/read/${leadStory.id}`)">
+      <template v-if="leadStory">
+        <div class="tb-splash-kicker">{{ tb.splashKicker }}</div>
+        <h2 class="tb-headline">{{ leadStory.title }}</h2>
+        <p class="tb-dek">{{ tb.leadDek }}</p>
+        <div class="tb-byline">
+          {{ leadStory.volTitle }}
+          <span class="tb-byline-sep">·</span>
+          <span v-if="settings.locale === 'en'">CH. {{ leadStory.chNum }}</span>
+          <span v-else>第 {{ leadStory.chNum }} 章</span>
+        </div>
+        <div class="tb-sticker">{{ tb.sticker }}</div>
+      </template>
+      <p v-else class="tb-headline tb-headline-empty">{{ tb.leadEmpty }}</p>
+    </main>
+
+    <!-- ── Lower deck: drafts (coming up) + archive (bombshells) ── -->
+    <div class="tb-lower">
+      <section class="tb-col tb-shame">
+        <div class="tb-band">{{ tb.comingUp }}</div>
+        <template v-if="drafts.length">
+          <article v-for="(d, i) in drafts" :key="d.id" class="tb-shame-item" @click="go('/drafts')">
+            <span class="tb-num">{{ i + 1 }}</span>
+            <div class="tb-shame-body">
+              <h3 class="tb-shame-title">{{ d.title || '(无题)' }}</h3>
+              <div v-if="d.updatedAt || d.savedAt" class="tb-shame-date">
+                {{ new Date(d.updatedAt || d.savedAt).toLocaleDateString('zh-CN') }}
+              </div>
+            </div>
+          </article>
+        </template>
+        <p v-else class="tb-empty">{{ tb.draftsEmpty }}</p>
+        <p class="tb-more" @click="go('/drafts')">{{ tb.allDrafts }}</p>
+      </section>
+
+      <section class="tb-col tb-bombs">
+        <div class="tb-band tb-band-pink">{{ tb.bigGossip }}</div>
+        <template v-if="events.length">
+          <article v-for="e in events" :key="e.id" class="tb-bomb" @click="go(`/archive/event/${e.id}`)">
+            <span class="tb-flag" :style="{ background: catColor(e.category) }">{{ catLabel(e.category) }}</span>
+            <h3 class="tb-bomb-title">{{ e.display_name || e.id }}</h3>
+            <div class="tb-bomb-meta">
+              {{ e.world_date || '—' }}
+              <span v-if="e.pieceCount" class="tb-bomb-pieces">· {{ e.pieceCount }} 篇报道</span>
+            </div>
+          </article>
+        </template>
+        <p v-else class="tb-empty">{{ tb.archiveEmpty }}</p>
+        <p class="tb-more" @click="go('/archive')">{{ tb.fullArchive }}</p>
+      </section>
+    </div>
+
+    <!-- ── Footer band ───────────────────────────────────────── -->
+    <footer class="tb-footer">
+      <span>{{ tb.footer }}</span>
+      <span class="tb-footer-dot">●</span>
+      <span>{{ store.currentBook?.title || 'Untitled' }}</span>
+    </footer>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       BROADSHEET front page (default) — the sober NYT masthead.
+       ════════════════════════════════════════════════════════════ -->
+  <div v-else class="nyt-home">
     <!-- ── Motto bar ─────────────────────────────────────────── -->
     <div class="nyt-motto">
       <span class="motto-text">"{{ aphorism.text }}"</span>
@@ -442,5 +573,337 @@ function go(path) { router.push(path) }
     gap: 4px;
   }
   .meta-right { text-align: left; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   TABLOID — a loud gossip-rag front page. Self-contained palette,
+   does NOT inherit any app theme. Red + sun-yellow + hot-pink + black.
+   ════════════════════════════════════════════════════════════ */
+.tabloid-home {
+  --tb-paper:  #fffdf8;
+  --tb-ink:    #0d0d0d;
+  --tb-red:    #e2000f;
+  --tb-red-dk: #b00009;
+  --tb-yellow: #ffd400;
+  --tb-pink:   #ff1f7a;
+  --tb-display: 'Smiley Sans', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold',
+                'Microsoft YaHei', sans-serif;
+  --tb-body:    'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+
+  max-width: 1080px;
+  margin: 20px auto;
+  background: var(--tb-paper);
+  color: var(--tb-ink);
+  border: 3px solid var(--tb-ink);
+  box-shadow: 0 8px 44px rgba(0, 0, 0, 0.30);
+  overflow: hidden;
+  font-family: var(--tb-display);
+}
+
+/* ── Flash bar ──────────────────────────────────────────── */
+.tb-flashbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--tb-ink);
+  color: #fff;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.tb-price {
+  background: var(--tb-yellow);
+  color: #000;
+  padding: 2px 11px;
+  transform: skewX(-9deg);
+  letter-spacing: 0.12em;
+}
+.tb-flashbar-date { opacity: 0.85; font-weight: 600; }
+.tb-issue { color: var(--tb-yellow); }
+
+/* ── Masthead ───────────────────────────────────────────── */
+.tb-masthead {
+  position: relative;
+  background: linear-gradient(180deg, var(--tb-red) 0%, var(--tb-red-dk) 100%);
+  border-top: 3px solid var(--tb-ink);
+  border-bottom: 3px solid var(--tb-ink);
+  padding: 16px 16px 18px;
+  text-align: center;
+  overflow: hidden;
+}
+.tb-wordmark {
+  font-family: 'UnifrakturMaguntia', 'Georgia', serif;
+  font-weight: 400;
+  font-size: clamp(54px, 10vw, 100px);
+  line-height: 1;
+  margin: 0;
+  color: #fff;
+  letter-spacing: 0.01em;
+  text-shadow: 2px 2px 0 var(--tb-red-dk), 4px 5px 0 rgba(0, 0, 0, 0.22);
+}
+.tb-burst {
+  position: absolute;
+  top: 50%;
+  width: 94px;
+  height: 94px;
+  background: var(--tb-yellow);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+                     50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.28));
+}
+.tb-burst-l { left: 14px; transform: translateY(-50%) rotate(-13deg); }
+.tb-burst-r { right: 14px; transform: translateY(-50%) rotate(13deg); }
+.tb-burst span {
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.05;
+  text-align: center;
+  white-space: pre-line;
+  letter-spacing: 0.02em;
+  transform: rotate(2deg);
+}
+
+/* ── Tagline sub-bar ────────────────────────────────────── */
+.tb-subbar {
+  background: var(--tb-ink);
+  color: var(--tb-yellow);
+  text-align: center;
+  font-size: clamp(13px, 1.6vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
+  text-transform: uppercase;
+}
+
+/* ── Lead splash ────────────────────────────────────────── */
+.tb-splash {
+  position: relative;
+  padding: 30px 28px 36px;
+  border-bottom: 3px solid var(--tb-ink);
+}
+.tb-splash.is-clickable { cursor: pointer; }
+.tb-splash-kicker {
+  display: inline-block;
+  background: var(--tb-ink);
+  color: var(--tb-yellow);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  padding: 4px 13px;
+  transform: skewX(-9deg);
+  margin-bottom: 16px;
+}
+.tb-headline {
+  font-family: var(--tb-display);
+  font-weight: 800;
+  font-size: clamp(38px, 7vw, 84px);
+  line-height: 0.96;
+  margin: 0;
+  max-width: 78%;
+  color: var(--tb-ink);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+.tb-splash.is-clickable:hover .tb-headline { color: var(--tb-red); }
+.tb-headline-empty { max-width: 100%; color: var(--tb-red); }
+.tb-dek {
+  margin: 18px 0 0;
+  max-width: 60%;
+  font-family: var(--tb-body);
+  font-weight: 600;
+  font-size: clamp(15px, 1.7vw, 19px);
+  line-height: 1.45;
+  color: #222;
+}
+.tb-byline {
+  margin-top: 14px;
+  font-family: var(--tb-body);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tb-red);
+}
+.tb-byline-sep { margin: 0 7px; color: #c8c8c8; }
+.tb-sticker {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  width: 106px;
+  height: 106px;
+  border-radius: 50%;
+  background: var(--tb-pink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+  font-family: var(--tb-display);
+  font-weight: 800;
+  font-size: 19px;
+  line-height: 1.1;
+  transform: rotate(-10deg);
+  border: 3px solid var(--tb-ink);
+  box-shadow: 0 4px 0 var(--tb-ink), 0 7px 16px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+.tb-splash.is-clickable:hover .tb-sticker { transform: rotate(0deg) scale(1.07); transition: transform 0.18s; }
+
+/* ── Lower deck ─────────────────────────────────────────── */
+.tb-lower {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+}
+.tb-shame { border-right: 3px solid var(--tb-ink); }
+.tb-band {
+  background: var(--tb-ink);
+  color: #fff;
+  font-family: var(--tb-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  text-transform: uppercase;
+}
+.tb-band-pink { background: var(--tb-pink); }
+
+/* Coming-up (drafts) list */
+.tb-shame-item {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tb-shame-item:last-of-type { border-bottom: none; }
+.tb-shame-item:hover { background: var(--tb-yellow); }
+.tb-num {
+  font-family: var(--tb-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 0.9;
+  color: var(--tb-red);
+  min-width: 26px;
+  text-align: center;
+}
+.tb-shame-body { min-width: 0; }
+.tb-shame-title {
+  margin: 0;
+  font-family: var(--tb-body);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--tb-ink);
+}
+.tb-shame-date {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #9a9a9a;
+  letter-spacing: 0.04em;
+}
+
+/* Bombshells (archive) list */
+.tb-bomb {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tb-bomb:last-of-type { border-bottom: none; }
+.tb-bomb:hover { background: #fff3c4; }
+.tb-flag {
+  display: inline-block;
+  color: #fff;
+  font-family: var(--tb-body);
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  margin-bottom: 7px;
+  transform: skewX(-9deg);
+}
+.tb-bomb-title {
+  margin: 0;
+  font-family: var(--tb-body);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--tb-ink);
+}
+.tb-bomb-meta {
+  margin-top: 5px;
+  font-family: var(--tb-body);
+  font-size: 11px;
+  color: #8a8a8a;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.tb-bomb-pieces { color: var(--tb-red); }
+
+.tb-more {
+  margin: 13px 16px 0;
+  font-family: var(--tb-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--tb-red);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+.tb-more:hover { color: var(--tb-pink); }
+.tb-empty {
+  padding: 14px 16px;
+  font-family: var(--tb-body);
+  font-style: italic;
+  color: #9a9a9a;
+  font-size: 14px;
+}
+
+/* ── Footer band ────────────────────────────────────────── */
+.tb-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--tb-ink);
+  color: #fff;
+  border-top: 3px solid var(--tb-ink);
+  padding: 11px 16px;
+  font-family: var(--tb-body);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.tb-footer-dot { color: var(--tb-red); font-size: 8px; }
+
+/* ── Tabloid responsive ─────────────────────────────────── */
+@media (max-width: 760px) {
+  .tb-lower { grid-template-columns: 1fr; }
+  .tb-shame { border-right: none; border-bottom: 3px solid var(--tb-ink); }
+  .tb-headline, .tb-dek { max-width: 100%; }
+}
+@media (max-width: 620px) {
+  .tb-burst { display: none; }
+  .tb-sticker {
+    position: static;
+    margin: 20px 0 0;
+    transform: rotate(-5deg);
+  }
 }
 </style>

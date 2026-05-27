@@ -238,6 +238,14 @@ onUnmounted(() => {
         </div>
 
         <div class="pop-section">
+          <div class="pop-label">{{ settings.locale === 'en' ? 'Front Page' : '首页头版' }}</div>
+          <div class="pop-toggle-group">
+            <button class="pop-toggle" :class="{ on: settings.homeStyle === 'broadsheet' }" @click="settings.homeStyle = 'broadsheet'">🗞 {{ settings.locale === 'en' ? 'Broadsheet' : '简报' }}</button>
+            <button class="pop-toggle" :class="{ on: settings.homeStyle === 'tabloid' }" @click="settings.homeStyle = 'tabloid'">💋 {{ settings.locale === 'en' ? 'Tabloid' : '小报' }}</button>
+          </div>
+        </div>
+
+        <div class="pop-section">
           <div class="pop-label">Language</div>
           <div class="pop-toggle-group">
             <button class="pop-toggle" :class="{ on: settings.locale === 'zh' }" @click="settings.locale = 'zh'">中文</button>
