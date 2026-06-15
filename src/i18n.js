@@ -501,6 +501,30 @@ const zh = {
   'tax.cat.military': '军事',
   'tax.cat.cultural': '文化',
   'tax.cat.other': '其他',
+
+  // ── Prompt Archive ─────────────────────────────────────────────────────
+  'nav.promptArchive': '⚙ Prompt 存档',
+  'pa.title': 'Prompt 存档',
+  'pa.new': '+ 新建',
+  'pa.empty': '还没有存档的 Prompt',
+  'pa.placeholder': '从左侧选择一个 Prompt，或新建一个开始',
+  'pa.titlePh': 'Prompt 标题',
+  'pa.source': '来源',
+  'pa.sourcePh': '如 Gemini、Claude、GPT、自定义…',
+  'pa.summary': '简介',
+  'pa.summaryPh': '一行描述这个 Prompt 的用途',
+  'pa.tags': '标签',
+  'pa.tagPh': '输入标签，回车添加',
+  'pa.contentPh': '在这里粘贴或编写 Prompt 内容…',
+  'pa.wordCount': '{count} 字',
+  'pa.unsaved': '● 未保存',
+  'pa.saved': '已保存',
+  'pa.saveFailed': '保存失败: {error}',
+  'pa.created': '已创建',
+  'pa.createFailed': '创建失败: {error}',
+  'pa.confirmNew': '当前内容未保存，确定新建？',
+  'pa.confirmDelete': '确定删除「{title}」？此操作不可撤销。',
+  'pa.searchPh': '搜索标题、来源、标签…',
 }
 
 const en = {
@@ -992,6 +1016,30 @@ const en = {
   'tax.cat.military': 'Military',
   'tax.cat.cultural': 'Cultural',
   'tax.cat.other': 'Other',
+
+  // ── Prompt Archive ─────────────────────────────────────────────────────
+  'nav.promptArchive': '⚙ Prompt Archive',
+  'pa.title': 'Prompt Archive',
+  'pa.new': '+ New',
+  'pa.empty': 'No prompts archived yet',
+  'pa.placeholder': 'Select a prompt on the left, or create a new one',
+  'pa.titlePh': 'Prompt title',
+  'pa.source': 'Source',
+  'pa.sourcePh': 'e.g. Gemini, Claude, GPT, custom…',
+  'pa.summary': 'Summary',
+  'pa.summaryPh': 'One-line description of this prompt',
+  'pa.tags': 'Tags',
+  'pa.tagPh': 'Type a tag, press Enter',
+  'pa.contentPh': 'Paste or write the prompt content here…',
+  'pa.wordCount': '{count} chars',
+  'pa.unsaved': '● Unsaved',
+  'pa.saved': 'Saved',
+  'pa.saveFailed': 'Save failed: {error}',
+  'pa.created': 'Created',
+  'pa.createFailed': 'Create failed: {error}',
+  'pa.confirmNew': 'Current content is unsaved. Create a new one anyway?',
+  'pa.confirmDelete': 'Delete "{title}"? This cannot be undone.',
+  'pa.searchPh': 'Search title, source, tags…',
 }
 
 const DICTS = { zh, en }

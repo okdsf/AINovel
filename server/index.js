@@ -1238,6 +1238,116 @@ app.delete('/api/prompt-groups/:id', async (req, res) => {
   }
 });
 
+// === Prompt Archive ===
+const PROMPTS_DIR = path.join(DATA_DIR, 'prompts');
+const PROMPTS_INDEX = path.join(PROMPTS_DIR, 'index.json');
+
+async function readPromptsIndex() {
+  try { return JSON.parse(await fs.readFile(PROMPTS_INDEX, 'utf-8')); }
+  catch { return []; }
+}
+
+async function writePromptsIndex(data) {
+  await ensureDir(PROMPTS_DIR);
+  await fs.writeFile(PROMPTS_INDEX, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+function promptPath(id) { return path.join(PROMPTS_DIR, `${id}.md`); }
+
+app.get('/api/prompts', async (req, res) => {
+  try {
+    res.json(await readPromptsIndex());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/prompts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!/^prompt-[a-z0-9-]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
+    const content = await fs.readFile(promptPath(id), 'utf-8');
+    const index = await readPromptsIndex();
+    const meta = index.find(p => p.id === id);
+    res.json({ id, content, ...(meta || {}) });
+  } catch (e) {
+    if (e.code === 'ENOENT') return res.status(404).json({ error: 'Prompt not found' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/prompts', async (req, res) => {
+  try {
+    const { title, content, source, tags, summary } = req.body;
+    const index = await readPromptsIndex();
+    const id = `prompt-${Date.now().toString(36)}`;
+    const now = new Date().toISOString();
+
+    let finalTitle = (title || '').trim();
+    if (!finalTitle) {
+      const nums = index
+        .map(p => { const m = /^Prompt (\d+)$/.exec(p.title || ''); return m ? parseInt(m[1], 10) : -1; })
+        .filter(n => n >= 0);
+      const next = nums.length ? Math.max(...nums) + 1 : 0;
+      finalTitle = `Prompt ${next}`;
+    }
+
+    const entry = {
+      id,
+      title: finalTitle,
+      source: (source || '').trim() || null,
+      tags: Array.isArray(tags) ? tags : [],
+      summary: (summary || '').trim() || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    await ensureDir(PROMPTS_DIR);
+    await fs.writeFile(promptPath(id), content || '', 'utf-8');
+    index.unshift(entry);
+    await writePromptsIndex(index);
+    res.json(entry);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/prompts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!/^prompt-[a-z0-9-]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
+    const index = await readPromptsIndex();
+    const meta = index.find(p => p.id === id);
+    if (!meta) return res.status(404).json({ error: 'Prompt not found' });
+
+    if (typeof req.body.title === 'string') meta.title = req.body.title.trim() || meta.title;
+    if (typeof req.body.source === 'string') meta.source = req.body.source.trim() || null;
+    if (typeof req.body.summary === 'string') meta.summary = req.body.summary.trim() || null;
+    if (Array.isArray(req.body.tags)) meta.tags = req.body.tags;
+    if (typeof req.body.content === 'string') {
+      await fs.writeFile(promptPath(id), req.body.content, 'utf-8');
+    }
+    meta.updatedAt = new Date().toISOString();
+    await writePromptsIndex(index);
+    res.json(meta);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/prompts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!/^prompt-[a-z0-9-]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
+    let index = await readPromptsIndex();
+    index = index.filter(p => p.id !== id);
+    await writePromptsIndex(index);
+    try { await fs.unlink(promptPath(id)); } catch {}
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Shutdown endpoint — kills all related processes for clean exit
 app.post('/api/shutdown', (req, res) => {
   res.json({ ok: true, message: 'Shutting down…' });

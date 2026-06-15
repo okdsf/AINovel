@@ -54,6 +54,11 @@ const router = createRouter({
       component: () => import('../views/EventView.vue')
     },
     {
+      path: '/prompt-archive',
+      name: 'prompt-archive',
+      component: () => import('../views/PromptArchiveView.vue')
+    },
+    {
       path: '/git',
       name: 'git',
       component: () => import('../views/GitView.vue')
