@@ -1126,11 +1126,12 @@ app.post('/api/prompt-groups', async (req, res) => {
       finalTitle = `迭代组${next}`;
     }
 
-    const entry = { id, title: finalTitle, createdAt: now, updatedAt: now };
+    const rCount = Math.max(1, Math.min(req.body.rCount || 6, 20));
+    const entry = { id, title: finalTitle, rCount, createdAt: now, updatedAt: now };
     const dir = pgDir(id);
     await ensureDir(dir);
     await fs.writeFile(path.join(dir, 'prompt.md'), '', 'utf-8');
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= rCount; i++) {
       await fs.writeFile(path.join(dir, `r${i}.md`), '', 'utf-8');
     }
     index.unshift(entry);
@@ -1153,12 +1154,13 @@ app.get('/api/prompt-groups/:id', async (req, res) => {
     let prompt = '';
     try { prompt = await fs.readFile(path.join(dir, 'prompt.md'), 'utf-8'); } catch {}
 
+    const rCount = meta.rCount || 6;
     const responses = {};
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= rCount; i++) {
       try { responses[i] = await fs.readFile(path.join(dir, `r${i}.md`), 'utf-8'); } catch { responses[i] = ''; }
     }
 
-    res.json({ ...meta, prompt, responses });
+    res.json({ ...meta, rCount, prompt, responses });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1173,6 +1175,7 @@ app.put('/api/prompt-groups/:id', async (req, res) => {
     if (!meta) return res.status(404).json({ error: 'Group not found' });
 
     if (typeof req.body.title === 'string') meta.title = req.body.title.trim() || meta.title;
+    if (req.body.starredSlot !== undefined) meta.starredSlot = req.body.starredSlot;
     meta.updatedAt = new Date().toISOString();
     await writePGIndex(index);
     res.json(meta);
@@ -1204,16 +1207,64 @@ app.put('/api/prompt-groups/:id/r/:slot', async (req, res) => {
     const id = req.params.id;
     const slot = parseInt(req.params.slot, 10);
     if (!/^pg-[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
-    if (slot < 1 || slot > 6) return res.status(400).json({ error: 'slot must be 1-6' });
     const index = await readPGIndex();
     const meta = index.find(d => d.id === id);
     if (!meta) return res.status(404).json({ error: 'Group not found' });
+    const rCount = meta.rCount || 6;
+    if (slot < 1 || slot > rCount) return res.status(400).json({ error: `slot must be 1-${rCount}` });
 
     await ensureDir(pgDir(id));
     await fs.writeFile(path.join(pgDir(id), `r${slot}.md`), req.body.content || '', 'utf-8');
     meta.updatedAt = new Date().toISOString();
     await writePGIndex(index);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/prompt-groups/:id/add-slot', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!/^pg-[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
+    const index = await readPGIndex();
+    const meta = index.find(d => d.id === id);
+    if (!meta) return res.status(404).json({ error: 'Group not found' });
+    const cur = meta.rCount || 6;
+    if (cur >= 20) return res.status(400).json({ error: 'max 20 slots' });
+    const next = cur + 1;
+    await fs.writeFile(path.join(pgDir(id), `r${next}.md`), '', 'utf-8');
+    meta.rCount = next;
+    meta.updatedAt = new Date().toISOString();
+    await writePGIndex(index);
+    res.json({ ok: true, rCount: next });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/prompt-groups/:id/r/:slot', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const slot = parseInt(req.params.slot, 10);
+    if (!/^pg-[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
+    const index = await readPGIndex();
+    const meta = index.find(d => d.id === id);
+    if (!meta) return res.status(404).json({ error: 'Group not found' });
+    const cur = meta.rCount || 6;
+    if (cur <= 1) return res.status(400).json({ error: 'need at least 1 slot' });
+    if (slot < 1 || slot > cur) return res.status(400).json({ error: `slot must be 1-${cur}` });
+    const dir = pgDir(id);
+    for (let i = slot; i < cur; i++) {
+      const src = path.join(dir, `r${i + 1}.md`);
+      const dst = path.join(dir, `r${i}.md`);
+      try { await fs.copyFile(src, dst); } catch { await fs.writeFile(dst, '', 'utf-8'); }
+    }
+    try { await fs.unlink(path.join(dir, `r${cur}.md`)); } catch {}
+    meta.rCount = cur - 1;
+    meta.updatedAt = new Date().toISOString();
+    await writePGIndex(index);
+    res.json({ ok: true, rCount: cur - 1 });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

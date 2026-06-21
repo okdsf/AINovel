@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import PromptLab from '../components/PromptLab.vue'
+import ImmersiveReader from '../components/ImmersiveReader.vue'
 import { useI18n } from '../i18n'
 import { useSettingsStore } from '../stores/settings'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
 const showSettings = ref(false)
+const immersiveDraft = ref(false)
 
 const editorStyle = computed(() => ({
   fontFamily: settings.currentFont().family,
@@ -422,6 +424,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="drafts-root">
+    <!-- ====== Immersive reading for draft ====== -->
+    <ImmersiveReader
+      v-if="immersiveDraft && currentId"
+      :markdown="content"
+      :title="title"
+      @close="immersiveDraft = false"
+      @save="c => { content = c; dirty = true; scheduleAutosave() }"
+    />
+
     <!-- ====== Top bar ====== -->
     <div class="d-topbar">
       <div class="d-topbar-left">
@@ -500,6 +511,7 @@ onBeforeUnmount(() => {
         <template v-if="viewMode === 'drafts'">
           <button v-if="!compareMode && currentId" class="d-icon-btn" @click="execEdit(mainEditorRef, 'undo')" :title="t('drafts.undoTitle')">↶</button>
           <button v-if="!compareMode && currentId" class="d-icon-btn" @click="execEdit(mainEditorRef, 'redo')" :title="t('drafts.redoTitle')">↷</button>
+          <button v-if="!compareMode && currentId" class="d-icon-btn" @click="immersiveDraft = true" :title="t('plab.readMode')">📖</button>
           <button class="d-icon-btn" @click="compareMode ? exitCompare() : startCompare()" :title="compareMode ? t('drafts.exitCompare') : t('drafts.compareMode')">⇄</button>
           <button v-if="!compareMode && currentId" class="d-icon-btn" @click="duplicateCurrent" :disabled="saving" :title="t('drafts.duplicate')">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor"><path d="M7 2a2 2 0 00-2 2v1H4a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-1h1a2 2 0 002-2V4a2 2 0 00-2-2H7zm0 2h9v9h-1V7a2 2 0 00-2-2H7V4zM4 7h9v9H4V7z"/></svg>

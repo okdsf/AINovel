@@ -6,8 +6,24 @@ import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../i18n'
 import { getChapterDisplay, getChapterLabel, getVolumeLabel } from '../utils/numbering'
 
-const props = defineProps({ chapterId: String })
-const emit = defineEmits(['close'])
+const props = defineProps({
+  chapterId: String,
+  markdown: String,
+  title: String,
+  slots: Array,
+  activeSlotIndex: { type: Number, default: 0 },
+  starredSlotIndex: { type: Number, default: -1 },
+})
+const emit = defineEmits(['close', 'save', 'slot-change'])
+const isStandalone = computed(() => props.markdown != null && !props.chapterId)
+const activeSlotIndex = ref(props.activeSlotIndex || 0)
+const starredSlotIndex = computed(() => props.starredSlotIndex ?? -1)
+
+function selectStandaloneSlot(idx) {
+  activeSlotIndex.value = idx
+  showChapters.value = false
+  emit('slot-change', idx)
+}
 
 const store = useNovelStore()
 const settings = useSettingsStore()
@@ -113,6 +129,11 @@ const readingStyle = computed(() => ({
 }))
 
 const renderedHtml = computed(() => {
+  if (isStandalone.value) {
+    const t = props.title
+    const titleHtml = t ? `<h2 style="text-align:center; margin-bottom: 1.2em; font-weight: 600;">${t}</h2>` : ''
+    return titleHtml + marked(props.markdown || '')
+  }
   const title = chapterDisplay.value.fullTitle
   const titleHtml = title ? `<h2 style="text-align:center; margin-bottom: 1.2em; font-weight: 600;">${title}</h2>` : ''
   return titleHtml + marked(content.value || '')
@@ -341,18 +362,19 @@ function enterEdit() {
   showSettings.value = false
   showChapters.value = false
 
+  const src = isStandalone.value ? (props.markdown || '') : content.value
   const vis = getVisibleParaIndices()
-  const map = buildParaMap(content.value)
+  const map = buildParaMap(src)
 
   if (vis && map.length > 0) {
     const fi = Math.min(vis.first, map.length - 1)
     const li = Math.min(vis.last, map.length - 1)
     const range = { start: map[fi].start, end: map[li].end }
     editRange.value = range
-    editContent.value = content.value.slice(range.start, range.end)
+    editContent.value = src.slice(range.start, range.end)
   } else {
     editRange.value = null
-    editContent.value = content.value
+    editContent.value = src
   }
   editMode.value = true
 }
@@ -360,13 +382,18 @@ function enterEdit() {
 async function saveEdit() {
   editSaving.value = true
   try {
+    const src = isStandalone.value ? (props.markdown || '') : content.value
     let newContent
     if (editRange.value) {
-      newContent = content.value.slice(0, editRange.value.start) + editContent.value + content.value.slice(editRange.value.end)
+      newContent = src.slice(0, editRange.value.start) + editContent.value + src.slice(editRange.value.end)
     } else {
       newContent = editContent.value
     }
-    await store.saveChapterContent(currentChapterId.value, newContent)
+    if (isStandalone.value) {
+      emit('save', newContent)
+    } else {
+      await store.saveChapterContent(currentChapterId.value, newContent)
+    }
     content.value = newContent
     editRange.value = null
     editMode.value = false
@@ -474,11 +501,24 @@ watch([() => settings.fontSize, () => settings.lineHeight, () => settings.fontId
   })
 })
 
+watch(() => props.markdown, () => {
+  if (!isStandalone.value) return
+  currentSpread.value = 0
+  nextTick(() => {
+    requestAnimationFrame(() => { requestAnimationFrame(() => { measure(); nextTick().then(() => refineSpreads()) }) })
+  })
+})
+
 let ro = null
 
 onMounted(async () => {
-  loadBookmarks()
-  await loadChapter(currentChapterId.value)
+  if (!isStandalone.value) {
+    loadBookmarks()
+    await loadChapter(currentChapterId.value)
+  } else {
+    await nextTick()
+    requestAnimationFrame(() => { requestAnimationFrame(() => { measure(); nextTick().then(() => refineSpreads()) }) })
+  }
   document.addEventListener('keydown', handleKeydown)
   if (bookRef.value) {
     ro = new ResizeObserver(() => {
@@ -505,15 +545,15 @@ onUnmounted(() => {
     <div class="immersive-overlay" :class="{ dark: settings.darkMode }" :style="settings.themeVars">
       <!-- Top bar -->
       <div class="immersive-topbar">
-        <span class="immersive-title">{{ chapterDisplay.fullTitle }}</span>
+        <span class="immersive-title">{{ isStandalone ? (slots ? slots[activeSlotIndex]?.label || title : title || '') : chapterDisplay.fullTitle }}</span>
         <span class="immersive-progress">{{ progress }}</span>
         <div class="topbar-actions">
-          <button class="topbar-btn" @click.stop="toggleChapters" :title="t('immersive.chapters')">
+          <button v-if="!isStandalone || (slots && slots.length > 1)" class="topbar-btn" @click.stop="toggleChapters" :title="t('immersive.chapters')">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
               <path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h14v2H3v-2z"/>
             </svg>
           </button>
-          <button class="topbar-btn" @click.stop="toggleBookmarkPanel" :title="t('immersive.bookmarks')">
+          <button v-if="!isStandalone" class="topbar-btn" @click.stop="toggleBookmarkPanel" :title="t('immersive.bookmarks')">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
               <path d="M5 2a1 1 0 00-1 1v14l6-3.5L16 17V3a1 1 0 00-1-1H5z"/>
             </svg>
@@ -555,7 +595,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Bookmark ribbon -->
-        <div class="bm-ribbon" :class="{ active: isBookmarked }" @click.stop="toggleBookmark" :title="isBookmarked ? t('immersive.removeBookmark') : t('immersive.addBookmark')">
+        <div v-if="!isStandalone" class="bm-ribbon" :class="{ active: isBookmarked }" @click.stop="toggleBookmark" :title="isBookmarked ? t('immersive.removeBookmark') : t('immersive.addBookmark')">
           <svg viewBox="0 0 24 40" width="20" height="32"><path d="M2 0h20v36l-10-6-10 6V0z" :fill="isBookmarked ? 'var(--rc-accent, #c0926e)' : 'transparent'" :stroke="isBookmarked ? 'none' : 'var(--rc-text, #999)'" stroke-width="1.5" opacity="0.7"/></svg>
         </div>
 
@@ -594,15 +634,15 @@ onUnmounted(() => {
       <div v-if="!editMode" class="click-zone left" @click.stop="turnPage(-1)"><span class="zone-arrow">‹</span></div>
       <div v-if="!editMode" class="click-zone right" @click.stop="turnPage(1)"><span class="zone-arrow">›</span></div>
 
-      <!-- Chapter list backdrop -->
+      <!-- Chapter / slot list backdrop -->
       <div v-if="showChapters" class="settings-backdrop" @click="showChapters = false"></div>
 
       <!-- Bookmark list backdrop -->
-      <div v-if="showBookmarks" class="settings-backdrop" @click="showBookmarks = false"></div>
+      <div v-if="showBookmarks && !isStandalone" class="settings-backdrop" @click="showBookmarks = false"></div>
 
       <!-- Bookmark list panel -->
       <Transition name="sp-anim">
-        <div v-if="showBookmarks" class="chapter-panel" @click.stop>
+        <div v-if="showBookmarks && !isStandalone" class="chapter-panel" @click.stop>
           <div class="cl-header">{{ t('immersive.bookmarks') }}</div>
           <div class="cl-body">
             <div v-if="bookmarks.length === 0" class="bm-empty">{{ t('immersive.noBookmarks') }}</div>
@@ -617,9 +657,9 @@ onUnmounted(() => {
         </div>
       </Transition>
 
-      <!-- Floating chapter list panel -->
+      <!-- Floating chapter list panel (chapter mode) -->
       <Transition name="sp-anim">
-        <div v-if="showChapters" ref="chapterListRef" class="chapter-panel" @click.stop>
+        <div v-if="showChapters && !isStandalone" ref="chapterListRef" class="chapter-panel" @click.stop>
           <div class="cl-header">{{ t('immersive.chapters') }}</div>
           <div class="cl-body">
             <div v-for="vol in volumeList" :key="vol.id" class="cl-volume">
@@ -634,6 +674,28 @@ onUnmounted(() => {
                 <span class="cl-ch-label">{{ ch.chLabel }}</span>
                 <span class="cl-ch-title">{{ ch.title }}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Floating slot list panel (standalone mode) -->
+      <Transition name="sp-anim">
+        <div v-if="showChapters && isStandalone && slots" class="chapter-panel" @click.stop>
+          <div class="cl-header">{{ t('plab.responses') }}</div>
+          <div class="cl-body">
+            <div
+              v-for="(s, idx) in slots"
+              :key="idx"
+              class="cl-chapter"
+              :class="{ active: idx === activeSlotIndex }"
+              @click="selectStandaloneSlot(idx)"
+            >
+              <span class="cl-ch-label">
+                <span v-if="idx === starredSlotIndex" style="color:var(--rc-accent,#c0926e);margin-right:3px">★</span>
+                {{ s.label }}
+              </span>
+              <span class="cl-ch-title">{{ (s.content || '').slice(0, 40).replace(/\n/g, ' ') || '—' }}</span>
             </div>
           </div>
         </div>
