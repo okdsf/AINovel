@@ -157,6 +157,18 @@ fi
 echo ""
 echo "Frontend / 前端: http://localhost:$NOVELWEB_WEB_PORT"
 echo "Backend  / 后端: http://localhost:$NOVELWEB_API_PORT"
+
+# Detect LAN IP for mobile access
+LAN_IP=""
+if command -v ip &>/dev/null; then
+    LAN_IP=$(ip -4 route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}')
+elif command -v ifconfig &>/dev/null; then
+    LAN_IP=$(ifconfig | awk '/inet / && !/127.0.0/ {gsub(/addr:/,"",$2); print $2; exit}')
+fi
+if [ -n "$LAN_IP" ]; then
+    echo "Mobile   / 手机: http://$LAN_IP:$NOVELWEB_WEB_PORT"
+fi
+
 echo ""
 echo "Press Ctrl+C to stop. / 按 Ctrl+C 停止服务"
 echo "========================================"

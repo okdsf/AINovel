@@ -103,6 +103,8 @@ const isStats   = computed(() => route.name === 'stats')
 const isSearch  = computed(() => route.name === 'search-replace')
 const isGit     = computed(() => route.name === 'git')
 const isPromptArchive = computed(() => route.name === 'prompt-archive')
+const isChat = computed(() => route.name === 'chat')
+const isNovelTree = computed(() => route.name === 'novel-tree')
 
 onMounted(() => {
   store.fetchBooks()
@@ -169,6 +171,28 @@ onUnmounted(() => {
           <line x1="16" y1="13" x2="8" y2="13"/>
           <line x1="16" y1="17" x2="8" y2="17"/>
           <line x1="10" y1="9" x2="8" y2="9"/>
+        </svg>
+      </RouterLink>
+
+      <RouterLink to="/chat" class="rail-btn" :class="{ active: isChat }" :title="t('nav.chat')" @click="closeAll">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </RouterLink>
+
+      <RouterLink to="/novel-tree" class="rail-btn" :class="{ active: isNovelTree }" :title="t('nav.novelTree')" @click="closeAll">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2"/>
+          <circle cx="6" cy="13" r="2"/>
+          <circle cx="18" cy="13" r="2"/>
+          <circle cx="4" cy="20" r="1.5"/>
+          <circle cx="10" cy="20" r="1.5"/>
+          <circle cx="20" cy="20" r="1.5"/>
+          <line x1="12" y1="7" x2="6" y2="11"/>
+          <line x1="12" y1="7" x2="18" y2="11"/>
+          <line x1="6" y1="15" x2="4" y2="18.5"/>
+          <line x1="6" y1="15" x2="10" y2="18.5"/>
+          <line x1="18" y1="15" x2="20" y2="18.5"/>
         </svg>
       </RouterLink>
 

@@ -35,6 +35,56 @@ const PW_KEY = 'novelweb-preview-width'
 const previewWidth = ref(+(localStorage.getItem(PW_KEY) || 100))
 watch(previewWidth, v => localStorage.setItem(PW_KEY, String(v)))
 
+// --- Writes (version library) ---
+const showWrites = ref(false)
+const writes = ref([])
+const writesLoading = ref(false)
+const previewWrite = ref(null)
+
+async function loadWrites() {
+  writesLoading.value = true
+  try {
+    writes.value = await store.getWrites(route.params.chapterId)
+  } catch {
+    writes.value = []
+  } finally {
+    writesLoading.value = false
+  }
+}
+
+function toggleWrites() {
+  showWrites.value = !showWrites.value
+  if (showWrites.value) loadWrites()
+}
+
+function provenanceLabel(prov) {
+  if (!prov) return t('writes.manual')
+  if (prov.type === 'ai') return t('writes.ai')
+  if (prov.type === 'imported') return t('writes.imported')
+  return t('writes.manual')
+}
+
+async function applyWriteVersion(w) {
+  saving.value = true
+  try {
+    await store.applyWrite(route.params.chapterId, w.id)
+    content.value = w.content
+    editContent.value = w.content
+    message.value = t('writes.applied')
+    previewWrite.value = null
+    setTimeout(() => message.value = '', 2000)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteWriteVersion(w) {
+  if (!confirm(t('writes.confirmDelete'))) return
+  await store.deleteWrite(route.params.chapterId, w.id)
+  await loadWrites()
+  if (previewWrite.value?.id === w.id) previewWrite.value = null
+}
+
 function findChapterTitle(chId) {
   if (!store.meta) return ''
   for (const vol of store.meta.volumes) {
@@ -44,7 +94,19 @@ function findChapterTitle(chId) {
   return ''
 }
 
-const chapterDisplay = computed(() => getChapterDisplay(store.meta, route.params.chapterId))
+const chapterDisplay = computed(() => {
+  const chId = route.params.chapterId
+  const pathIdx = store.treePath.indexOf(chId)
+  if (pathIdx >= 0) {
+    const node = store.treeNodes[chId]
+    const title = node?.title || findChapterTitle(chId) || chId
+    return { fullTitle: `第${pathIdx + 1}章 ${title}` }
+  }
+  return getChapterDisplay(store.meta, chId)
+})
+
+const pathNeighbors = computed(() => store.getPathNeighbors(route.params.chapterId))
+
 const renderedHtml = computed(() => marked(content.value || ''))
 
 function buildParagraphs() {
@@ -67,6 +129,8 @@ async function loadContent() {
   mode.value = 'read'
   splitPoint.value = -1
   message.value = ''
+  previewWrite.value = null
+  loadWrites()
 }
 
 async function saveContent() {
@@ -178,6 +242,11 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
         <button class="btn" @click="enterEditMode">{{ t('reader.editBody') }}</button>
         <button class="btn" @click="enterSplitMode">{{ t('reader.split') }}</button>
         <button class="btn" @click="handleMerge" v-if="canMerge()" :disabled="saving">{{ t('reader.merge') }}</button>
+        <span style="width:1px;height:20px;background:var(--rule);margin:0 4px;"></span>
+        <button class="btn" :class="{ 'btn-active': showWrites }" @click="toggleWrites">
+          {{ t('writes.title') }}
+          <span v-if="writes.length" class="writes-badge">{{ writes.length }}</span>
+        </button>
       </template>
       <template v-if="mode === 'edit'">
         <button class="btn btn-primary" @click="saveContent" :disabled="saving">
@@ -206,6 +275,41 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
       </div>
       <ReadingSettings v-if="mode === 'read'" />
     </div>
+
+    <!-- Writes panel (version library) -->
+    <Transition name="writes-slide">
+      <div v-if="showWrites && mode === 'read'" class="writes-panel">
+        <div v-if="writesLoading" class="writes-loading">{{ t('common.loading') }}</div>
+        <div v-else-if="writes.length === 0" class="writes-empty">
+          {{ t('writes.empty') }}
+        </div>
+        <div v-else class="writes-list">
+          <div
+            v-for="w in writes"
+            :key="w.id"
+            class="writes-item"
+            :class="{ previewing: previewWrite?.id === w.id }"
+          >
+            <div class="writes-item-head">
+              <span class="writes-type" :class="w.provenance?.type || 'manual'">{{ provenanceLabel(w.provenance) }}</span>
+              <span v-if="w.provenance?.type === 'imported' && w.provenance.source" class="writes-source">{{ w.provenance.source }}</span>
+              <span class="writes-date">{{ new Date(w.createdAt).toLocaleString() }}</span>
+            </div>
+            <div class="writes-snippet">{{ (w.content || '').slice(0, 120) }}{{ (w.content || '').length > 120 ? '…' : '' }}</div>
+            <div class="writes-actions">
+              <button class="btn btn-sm" @click="previewWrite = previewWrite?.id === w.id ? null : w">
+                {{ previewWrite?.id === w.id ? t('common.close') : t('writes.preview') }}
+              </button>
+              <button class="btn btn-sm btn-primary" @click="applyWriteVersion(w)" :disabled="saving">{{ t('writes.apply') }}</button>
+              <button class="btn btn-sm" @click="deleteWriteVersion(w)">{{ t('writes.delete') }}</button>
+            </div>
+            <div v-if="previewWrite?.id === w.id" class="writes-preview" :style="readingStyle">
+              {{ w.content }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Read mode: theme-aware paper -->
     <div v-if="mode === 'read'" class="reader-paper" :style="{ ...settings.themeVars, maxWidth: previewWidth + '%' }">
@@ -372,5 +476,110 @@ watch(() => route.params.chapterId, loadContent, { immediate: true })
 .pw-slider::-webkit-slider-thumb {
   -webkit-appearance: none; width: 12px; height: 12px;
   border-radius: 50%; background: var(--accent); cursor: pointer;
+}
+
+/* ── Writes panel ──────────────────────────────────────────── */
+.btn-active {
+  background: var(--text) !important;
+  color: var(--bg) !important;
+}
+.writes-badge {
+  display: inline-block;
+  background: var(--hot, #c44);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  margin-left: 4px;
+  padding: 0 4px;
+}
+.writes-panel {
+  border: 1px solid var(--rule);
+  background: var(--bg-card, var(--bg));
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.writes-loading,
+.writes-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 12px;
+}
+.writes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.writes-item {
+  border: 1px solid var(--rule);
+  padding: 12px;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.writes-item.previewing {
+  border-color: var(--hot, var(--accent));
+}
+.writes-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.writes-type {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+.writes-type.manual { background: color-mix(in srgb, #4a90d9 12%, transparent); color: #4a90d9; }
+.writes-type.ai { background: color-mix(in srgb, #6ab04c 12%, transparent); color: #6ab04c; }
+.writes-type.imported { background: color-mix(in srgb, #e17055 12%, transparent); color: #e17055; }
+.writes-source {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.writes-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.writes-snippet {
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.writes-actions {
+  display: flex;
+  gap: 6px;
+}
+.writes-preview {
+  margin-top: 10px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  border: 1px solid var(--rule);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Writes slide transition ───────────────────────────────── */
+.writes-slide-enter-active, .writes-slide-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.writes-slide-enter-from, .writes-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.writes-slide-enter-to, .writes-slide-leave-from {
+  opacity: 1;
+  max-height: 800px;
 }
 </style>

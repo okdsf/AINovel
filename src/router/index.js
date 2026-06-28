@@ -59,6 +59,16 @@ const router = createRouter({
       component: () => import('../views/PromptArchiveView.vue')
     },
     {
+      path: '/novel-tree',
+      name: 'novel-tree',
+      component: () => import('../views/NovelTreeView.vue')
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: () => import('../views/ChatView.vue')
+    },
+    {
       path: '/git',
       name: 'git',
       component: () => import('../views/GitView.vue')

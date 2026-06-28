@@ -9,6 +9,7 @@ const apiTarget = `http://localhost:${process.env.NOVELWEB_API_PORT || '3001'}`
 export default defineConfig({
   plugins: [vue()],
   server: {
+    host: true,
     port: webPort,
     proxy: {
       '/api': apiTarget,

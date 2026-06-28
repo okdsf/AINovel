@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs/promises';
@@ -35,6 +36,7 @@ async function writeBooksIndex(data) {
 function bookDir(bookId) { return path.join(BOOKS_DIR, bookId); }
 function bookMetaPath(bookId) { return path.join(BOOKS_DIR, bookId, 'meta.json'); }
 function bookChaptersDir(bookId) { return path.join(BOOKS_DIR, bookId, 'chapters'); }
+function bookTreePath(bookId) { return path.join(BOOKS_DIR, bookId, 'tree.json'); }
 
 async function readMeta(bookId) {
   return JSON.parse(await fs.readFile(bookMetaPath(bookId), 'utf-8'));
@@ -155,12 +157,220 @@ app.delete('/api/books/:bookId/volumes/:volId', async (req, res) => {
     const volIndex = meta.volumes.findIndex(v => v.id === req.params.volId);
     if (volIndex === -1) return res.status(404).json({ error: 'Not found' });
     const vol = meta.volumes[volIndex];
-    for (const ch of vol.chapters) {
-      try { await fs.unlink(path.join(CHDIR, `${ch.id}.md`)); } catch {}
-      try { await fs.unlink(path.join(CHDIR, `${ch.id}.conv.json`)); } catch {}
+    const mode = req.query.mode;
+
+    if (mode === 'dissolve' && vol.chapters.length > 0) {
+      const targetIdx = volIndex > 0 ? volIndex - 1 : (meta.volumes.length > 1 ? 1 : -1);
+      if (targetIdx === -1) return res.status(400).json({ error: 'No target volume to merge into' });
+      const target = meta.volumes[targetIdx];
+      if (volIndex > 0) {
+        target.chapters.push(...vol.chapters);
+      } else {
+        target.chapters.unshift(...vol.chapters);
+      }
+    } else {
+      for (const ch of vol.chapters) {
+        try { await fs.unlink(path.join(CHDIR, `${ch.id}.md`)); } catch {}
+        try { await fs.unlink(path.join(CHDIR, `${ch.id}.conv.json`)); } catch {}
+      }
     }
+
     meta.volumes.splice(volIndex, 1);
     await writeMeta(req.params.bookId, meta);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// === Novel Tree ===
+// tree.json is the source of truth: { root, nodes: {id: {title, volume, ...}}, edges: {id: [childId,...]}, selectedPath: [...] }
+
+async function readTree(bookId) {
+  try { return JSON.parse(await fs.readFile(bookTreePath(bookId), 'utf-8')); }
+  catch { return { root: null, nodes: {}, edges: {}, selectedPath: [] }; }
+}
+
+async function writeTree(bookId, tree) {
+  await fs.writeFile(bookTreePath(bookId), JSON.stringify(tree, null, 2), 'utf-8');
+}
+
+app.get('/api/books/:bookId/tree', async (req, res) => {
+  try {
+    res.json(await readTree(req.params.bookId));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/books/:bookId/tree', async (req, res) => {
+  try {
+    const tree = await readTree(req.params.bookId);
+    if (req.body.selectedPath !== undefined) tree.selectedPath = req.body.selectedPath;
+    if (req.body.nodes !== undefined) tree.nodes = req.body.nodes;
+    if (req.body.edges !== undefined) tree.edges = req.body.edges;
+    if (req.body.root !== undefined) tree.root = req.body.root;
+    await writeTree(req.params.bookId, tree);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/books/:bookId/tree/branch', async (req, res) => {
+  try {
+    const { parentId, title, volume } = req.body;
+    if (!parentId || !title) return res.status(400).json({ error: 'parentId and title required' });
+
+    const tree = await readTree(req.params.bookId);
+    if (!tree.nodes[parentId]) return res.status(404).json({ error: 'Parent node not found' });
+
+    const branchId = `branch-${Date.now().toString(36)}`;
+    const CHDIR = bookChaptersDir(req.params.bookId);
+    await ensureDir(CHDIR);
+    await fs.writeFile(path.join(CHDIR, `${branchId}.md`), '', 'utf-8');
+    await fs.writeFile(path.join(CHDIR, `${branchId}.conv.json`), '[]', 'utf-8');
+
+    tree.nodes[branchId] = { title, volume: volume || tree.nodes[parentId].volume };
+    if (!tree.edges[parentId]) tree.edges[parentId] = [];
+    tree.edges[parentId].push(branchId);
+    tree.edges[branchId] = [];
+
+    await writeTree(req.params.bookId, tree);
+    res.json({ id: branchId, title, parentId });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Rename a tree node
+app.put('/api/books/:bookId/tree/node/:nodeId', async (req, res) => {
+  try {
+    const tree = await readTree(req.params.bookId);
+    const node = tree.nodes[req.params.nodeId];
+    if (!node) return res.status(404).json({ error: 'Node not found' });
+    if (req.body.title !== undefined) node.title = req.body.title;
+    if (req.body.volume !== undefined) node.volume = req.body.volume;
+    await writeTree(req.params.bookId, tree);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete a tree node (removes from edges, re-links parent to children)
+app.delete('/api/books/:bookId/tree/node/:nodeId', async (req, res) => {
+  try {
+    const nodeId = req.params.nodeId;
+    const tree = await readTree(req.params.bookId);
+    if (!tree.nodes[nodeId]) return res.status(404).json({ error: 'Node not found' });
+
+    const nodeChildren = tree.edges[nodeId] || [];
+
+    // Find parent and replace this node with its children
+    for (const [pid, children] of Object.entries(tree.edges)) {
+      const idx = children.indexOf(nodeId);
+      if (idx !== -1) {
+        children.splice(idx, 1, ...nodeChildren);
+      }
+    }
+
+    // If root is deleted, promote first child
+    if (tree.root === nodeId) {
+      tree.root = nodeChildren[0] || null;
+    }
+
+    delete tree.nodes[nodeId];
+    delete tree.edges[nodeId];
+
+    // Remove from selectedPath
+    tree.selectedPath = (tree.selectedPath || []).filter(id => id !== nodeId);
+
+    await writeTree(req.params.bookId, tree);
+
+    // Delete chapter files
+    const CHDIR = bookChaptersDir(req.params.bookId);
+    try { await fs.unlink(path.join(CHDIR, `${nodeId}.md`)); } catch {}
+    try { await fs.unlink(path.join(CHDIR, `${nodeId}.conv.json`)); } catch {}
+    try { await fs.unlink(path.join(CHDIR, `${nodeId}.writes.json`)); } catch {}
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Rename a volume (updates all nodes with that volume label)
+app.put('/api/books/:bookId/tree/volume-rename', async (req, res) => {
+  try {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) return res.status(400).json({ error: 'oldName and newName required' });
+    const tree = await readTree(req.params.bookId);
+    for (const node of Object.values(tree.nodes)) {
+      if (node.volume === oldName) node.volume = newName;
+    }
+    await writeTree(req.params.bookId, tree);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Swap two adjacent nodes in the path (rewires tree edges)
+app.post('/api/books/:bookId/tree/swap', async (req, res) => {
+  try {
+    const { pathArray, indexA, indexB } = req.body;
+    if (!Array.isArray(pathArray) || indexA == null || indexB == null) {
+      return res.status(400).json({ error: 'pathArray, indexA, indexB required' });
+    }
+    if (Math.abs(indexA - indexB) !== 1) {
+      return res.status(400).json({ error: 'Can only swap adjacent nodes' });
+    }
+
+    const lo = Math.min(indexA, indexB);
+    const hi = Math.max(indexA, indexB);
+    const tree = await readTree(req.params.bookId);
+
+    const beforeId = lo > 0 ? pathArray[lo - 1] : null;
+    const nodeA = pathArray[lo];
+    const nodeB = pathArray[hi];
+    const afterId = hi < pathArray.length - 1 ? pathArray[hi + 1] : null;
+
+    // Rewire: before→A→B→after becomes before→B→A→after
+    // 1. before's children: replace A with B
+    if (beforeId && tree.edges[beforeId]) {
+      tree.edges[beforeId] = tree.edges[beforeId].map(c => c === nodeA ? nodeB : c);
+    }
+    // If A was root, B becomes root
+    if (tree.root === nodeA) tree.root = nodeB;
+
+    // 2. B's children: replace its continuation with A
+    //    B might have other children (branches), only replace the one that was B's next in path
+    if (tree.edges[nodeB]) {
+      // Remove afterId from B's children if present, add A instead
+      tree.edges[nodeB] = tree.edges[nodeB].filter(c => c !== (afterId || '__none__'));
+      if (!tree.edges[nodeB].includes(nodeA)) tree.edges[nodeB].push(nodeA);
+    } else {
+      tree.edges[nodeB] = [nodeA];
+    }
+
+    // 3. A's children: replace B with afterId (or empty)
+    if (tree.edges[nodeA]) {
+      tree.edges[nodeA] = tree.edges[nodeA].filter(c => c !== nodeB);
+      if (afterId && !tree.edges[nodeA].includes(afterId)) tree.edges[nodeA].push(afterId);
+    }
+
+    // 4. Update selectedPath if it matches
+    if (tree.selectedPath) {
+      const sp = tree.selectedPath;
+      const spLoIdx = sp.indexOf(nodeA);
+      if (spLoIdx >= 0 && sp[spLoIdx + 1] === nodeB) {
+        sp[spLoIdx] = nodeB;
+        sp[spLoIdx + 1] = nodeA;
+      }
+    }
+
+    await writeTree(req.params.bookId, tree);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1393,6 +1603,257 @@ app.delete('/api/prompts/:id', async (req, res) => {
     index = index.filter(p => p.id !== id);
     await writePromptsIndex(index);
     try { await fs.unlink(promptPath(id)); } catch {}
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// === AI Conversations ===
+const CONV_DIR = path.join(DATA_DIR, 'conversations');
+const CONV_INDEX = path.join(CONV_DIR, 'index.json');
+
+async function readConvIndex() {
+  try { return JSON.parse(await fs.readFile(CONV_INDEX, 'utf-8')); }
+  catch { return []; }
+}
+
+async function writeConvIndex(data) {
+  await ensureDir(CONV_DIR);
+  await fs.writeFile(CONV_INDEX, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+function convPath(id) { return path.join(CONV_DIR, `${id}.json`); }
+
+app.get('/api/conversations', async (req, res) => {
+  try {
+    res.json(await readConvIndex());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/conversations/:id', async (req, res) => {
+  try {
+    const data = JSON.parse(await fs.readFile(convPath(req.params.id), 'utf-8'));
+    res.json(data);
+  } catch (e) {
+    if (e.code === 'ENOENT') return res.status(404).json({ error: 'Conversation not found' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/conversations', async (req, res) => {
+  try {
+    const { title, model, bookId, contextChapters, systemPrompt } = req.body;
+    const index = await readConvIndex();
+    const id = `conv-${Date.now().toString(36)}`;
+    const now = new Date().toISOString();
+
+    let contextSnapshot = '';
+    if (bookId && Array.isArray(contextChapters) && contextChapters.length) {
+      const CHDIR = bookChaptersDir(bookId);
+      const parts = [];
+      for (const chId of contextChapters) {
+        try {
+          const content = await fs.readFile(path.join(CHDIR, `${chId}.md`), 'utf-8');
+          if (content.trim()) parts.push(content);
+        } catch {}
+      }
+      contextSnapshot = parts.join('\n\n---\n\n');
+    }
+
+    const sysContent = [systemPrompt, contextSnapshot].filter(Boolean).join('\n\n---\n\n');
+    const sysMsg = {
+      id: `msg-${Date.now().toString(36)}`,
+      role: 'system',
+      content: sysContent,
+      parent: null,
+    };
+
+    const conv = {
+      id,
+      title: (title || '').trim() || 'New Conversation',
+      model: model || process.env.OPENAI_MODEL || 'gpt-4o',
+      bookId: bookId || null,
+      context: {
+        chapters: contextChapters || [],
+        promptSnippet: (systemPrompt || '').slice(0, 200),
+      },
+      messages: [sysMsg],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await ensureDir(CONV_DIR);
+    await fs.writeFile(convPath(id), JSON.stringify(conv, null, 2), 'utf-8');
+
+    const entry = { id, title: conv.title, model: conv.model, bookId: conv.bookId, createdAt: now, updatedAt: now };
+    index.unshift(entry);
+    await writeConvIndex(index);
+
+    res.json(conv);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/conversations/:id', async (req, res) => {
+  try {
+    const conv = JSON.parse(await fs.readFile(convPath(req.params.id), 'utf-8'));
+    if (req.body.title !== undefined) conv.title = req.body.title;
+    if (req.body.messages !== undefined) conv.messages = req.body.messages;
+    conv.updatedAt = new Date().toISOString();
+    await fs.writeFile(convPath(conv.id), JSON.stringify(conv, null, 2), 'utf-8');
+
+    const index = await readConvIndex();
+    const meta = index.find(c => c.id === conv.id);
+    if (meta) {
+      if (req.body.title !== undefined) meta.title = conv.title;
+      meta.updatedAt = conv.updatedAt;
+      await writeConvIndex(index);
+    }
+
+    res.json(conv);
+  } catch (e) {
+    if (e.code === 'ENOENT') return res.status(404).json({ error: 'Not found' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/conversations/:id', async (req, res) => {
+  try {
+    let index = await readConvIndex();
+    index = index.filter(c => c.id !== req.params.id);
+    await writeConvIndex(index);
+    try { await fs.unlink(convPath(req.params.id)); } catch {}
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- OpenAI Proxy (streaming) ---
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
+
+    const { messages, model, temperature, max_tokens } = req.body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages array required' });
+    }
+
+    const body = {
+      model: model || process.env.OPENAI_MODEL || 'gpt-4o',
+      messages,
+      stream: true,
+    };
+    if (temperature !== undefined) body.temperature = temperature;
+    if (max_tokens !== undefined) body.max_tokens = max_tokens;
+
+    const upstream = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!upstream.ok) {
+      const err = await upstream.text();
+      return res.status(upstream.status).json({ error: err });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const reader = upstream.body.getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(decoder.decode(value, { stream: true }));
+      }
+    } finally {
+      res.end();
+    }
+  } catch (e) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: e.message });
+    } else {
+      res.end();
+    }
+  }
+});
+
+// --- Chapter Writes (version library) ---
+function writesPath(bookId, chId) {
+  return path.join(bookChaptersDir(bookId), `${chId}.writes.json`);
+}
+
+async function readWrites(bookId, chId) {
+  try { return JSON.parse(await fs.readFile(writesPath(bookId, chId), 'utf-8')); }
+  catch { return []; }
+}
+
+app.get('/api/books/:bookId/chapters/:chId/writes', async (req, res) => {
+  try {
+    res.json(await readWrites(req.params.bookId, req.params.chId));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/books/:bookId/chapters/:chId/writes', async (req, res) => {
+  try {
+    const { content, provenance } = req.body;
+    if (!content) return res.status(400).json({ error: 'content required' });
+
+    const writes = await readWrites(req.params.bookId, req.params.chId);
+    const id = `write-${Date.now().toString(36)}`;
+    const entry = {
+      id,
+      content,
+      provenance: provenance || { type: 'manual' },
+      createdAt: new Date().toISOString(),
+    };
+    writes.push(entry);
+    await fs.writeFile(
+      writesPath(req.params.bookId, req.params.chId),
+      JSON.stringify(writes, null, 2), 'utf-8'
+    );
+    res.json(entry);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/books/:bookId/chapters/:chId/writes/:writeId', async (req, res) => {
+  try {
+    let writes = await readWrites(req.params.bookId, req.params.chId);
+    writes = writes.filter(w => w.id !== req.params.writeId);
+    await fs.writeFile(
+      writesPath(req.params.bookId, req.params.chId),
+      JSON.stringify(writes, null, 2), 'utf-8'
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Apply a write — sets the chapter's .md content to the write's content
+app.post('/api/books/:bookId/chapters/:chId/writes/:writeId/apply', async (req, res) => {
+  try {
+    const writes = await readWrites(req.params.bookId, req.params.chId);
+    const w = writes.find(w => w.id === req.params.writeId);
+    if (!w) return res.status(404).json({ error: 'Write not found' });
+    const chPath = path.join(bookChaptersDir(req.params.bookId), `${req.params.chId}.md`);
+    await fs.writeFile(chPath, w.content, 'utf-8');
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

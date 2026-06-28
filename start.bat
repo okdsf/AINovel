@@ -128,6 +128,19 @@ REM --------------------------------------------------------------------
 echo.
 echo Frontend: http://localhost:%NOVELWEB_WEB_PORT%
 echo Backend:  http://localhost:%NOVELWEB_API_PORT%
+
+REM Detect LAN IP for mobile access
+set LAN_IP=
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4" ^| findstr /V "127.0.0" ^| findstr /V "169.254" ^| findstr /V "192.168.64"') do (
+    if not defined LAN_IP (
+        for /f "tokens=*" %%b in ("%%a") do set LAN_IP=%%b
+    )
+)
+if defined LAN_IP (
+    echo.
+    echo Mobile:   http://%LAN_IP%:%NOVELWEB_WEB_PORT%
+)
+
 echo.
 echo Press Ctrl+C to stop.
 echo ========================================

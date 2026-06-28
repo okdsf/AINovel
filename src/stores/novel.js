@@ -10,6 +10,11 @@ export const useNovelStore = defineStore('novel', () => {
   const meta = ref(null)
   const loading = ref(false)
 
+  // --- Novel tree: selected reading path ---
+  const treePath = ref([])
+  const treeNodes = ref({})
+  const treeData = ref(null)
+
   const currentBook = computed(() => books.value.find(b => b.id === currentBookId.value))
   const bookApi = computed(() => `${API}/books/${currentBookId.value}`)
 
@@ -72,6 +77,7 @@ export const useNovelStore = defineStore('novel', () => {
     try {
       const res = await fetch(`${bookApi.value}/meta`)
       meta.value = await res.json()
+      fetchTreePath()
     } finally {
       loading.value = false
     }
@@ -98,8 +104,9 @@ export const useNovelStore = defineStore('novel', () => {
     await fetchMeta()
   }
 
-  async function deleteVolume(volId) {
-    await fetch(`${bookApi.value}/volumes/${volId}`, { method: 'DELETE' })
+  async function deleteVolume(volId, mode) {
+    const qs = mode === 'dissolve' ? '?mode=dissolve' : ''
+    await fetch(`${bookApi.value}/volumes/${volId}${qs}`, { method: 'DELETE' })
     await fetchMeta()
   }
 
@@ -198,13 +205,138 @@ export const useNovelStore = defineStore('novel', () => {
     return await res.json()
   }
 
+  // --- Novel Tree ---
+  async function getTree() {
+    const res = await fetch(`${bookApi.value}/tree`)
+    return await res.json()
+  }
+
+  async function saveTree(tree) {
+    await fetch(`${bookApi.value}/tree`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tree),
+    })
+    await fetchTreePath()
+  }
+
+  async function fetchTreePath() {
+    if (!currentBookId.value) return
+    try {
+      const data = await getTree()
+      treeData.value = data
+      treePath.value = data.selectedPath || []
+      treeNodes.value = data.nodes || {}
+    } catch {
+      treeData.value = null
+      treePath.value = []
+      treeNodes.value = {}
+    }
+  }
+
+  function getPathNeighbors(chId) {
+    const path = treePath.value
+    if (!path.length) return { prev: null, next: null }
+    const idx = path.indexOf(chId)
+    if (idx === -1) return { prev: null, next: null }
+    return {
+      prev: idx > 0 ? path[idx - 1] : null,
+      next: idx < path.length - 1 ? path[idx + 1] : null,
+    }
+  }
+
+  // Compute the sidebar view: path grouped by volume, with chapter numbering
+  const pathView = computed(() => {
+    const path = treePath.value
+    const nodes = treeNodes.value
+    if (!path.length || !Object.keys(nodes).length) return []
+
+    const volumes = []
+    let currentVol = null
+    let globalChNum = 0
+
+    for (const chId of path) {
+      const node = nodes[chId]
+      if (!node) continue
+      globalChNum++
+      const volName = node.volume || ''
+
+      if (!currentVol || currentVol.name !== volName) {
+        currentVol = { name: volName, volNum: volumes.length + 1, chapters: [] }
+        volumes.push(currentVol)
+      }
+      currentVol.chapters.push({ id: chId, title: node.title || chId, chNum: globalChNum })
+    }
+    return volumes
+  })
+
+  // --- Tree node operations ---
+  async function renameTreeNode(nodeId, title) {
+    await fetch(`${bookApi.value}/tree/node/${nodeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    })
+    await fetchTreePath()
+  }
+
+  async function deleteTreeNode(nodeId) {
+    await fetch(`${bookApi.value}/tree/node/${nodeId}`, { method: 'DELETE' })
+    await fetchTreePath()
+  }
+
+  async function swapTreeNodes(indexA, indexB) {
+    await fetch(`${bookApi.value}/tree/swap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pathArray: treePath.value, indexA, indexB }),
+    })
+    await fetchTreePath()
+  }
+
+  async function renameTreeVolume(oldName, newName) {
+    await fetch(`${bookApi.value}/tree/volume-rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldName, newName }),
+    })
+    await fetchTreePath()
+  }
+
+  // --- Writes (version library) ---
+  async function getWrites(chId) {
+    const res = await fetch(`${bookApi.value}/chapters/${chId}/writes`)
+    return await res.json()
+  }
+
+  async function addWrite(chId, content, provenance) {
+    const res = await fetch(`${bookApi.value}/chapters/${chId}/writes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, provenance }),
+    })
+    return await res.json()
+  }
+
+  async function deleteWrite(chId, writeId) {
+    await fetch(`${bookApi.value}/chapters/${chId}/writes/${writeId}`, { method: 'DELETE' })
+  }
+
+  async function applyWrite(chId, writeId) {
+    await fetch(`${bookApi.value}/chapters/${chId}/writes/${writeId}/apply`, { method: 'POST' })
+  }
+
   return {
     books, currentBookId, currentBook, meta, loading,
+    treePath, treeNodes, treeData, pathView,
     fetchBooks, selectBook, createBook, deleteBook, updateBook,
     fetchMeta, addVolume, addChapter, deleteVolume, deleteChapter,
     getChapterContent, saveChapterContent,
     getConversation, saveConversation, addConversationTurn,
     renameChapter, renameVolume, splitChapter, mergeChapter, moveChapter,
-    getStats
+    getStats,
+    getTree, saveTree, fetchTreePath, getPathNeighbors,
+    renameTreeNode, deleteTreeNode, swapTreeNodes, renameTreeVolume,
+    getWrites, addWrite, deleteWrite, applyWrite,
   }
 })
