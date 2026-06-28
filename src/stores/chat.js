@@ -97,10 +97,13 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   // Send a message and stream the response
-  async function sendMessage(userContent, parentMsgId) {
+  async function sendMessage(userContent, parentMsgId, opts = {}) {
     if (!currentConv.value || streaming.value) return null
 
     const conv = currentConv.value
+    const useModel = opts.model || conv.model
+    const useEffort = opts.reasoning_effort || null
+
     const userMsg = {
       id: `msg-${Date.now().toString(36)}`,
       role: 'user',
@@ -117,6 +120,7 @@ export const useChatStore = defineStore('chat', () => {
       role: 'assistant',
       content: '',
       parent: userMsg.id,
+      model: useModel,
     }
     conv.messages.push(assistantMsg)
 
@@ -124,13 +128,13 @@ export const useChatStore = defineStore('chat', () => {
     streamContent.value = ''
 
     try {
+      const body = { messages: apiMessages, model: useModel }
+      if (useEffort) body.reasoning_effort = useEffort
+
       const res = await fetch(`${API}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: apiMessages,
-          model: conv.model,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
@@ -185,14 +189,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Regenerate — send same parent's user message again, creating a sibling branch
-  async function regenerate(assistantMsgId) {
+  async function regenerate(assistantMsgId, opts = {}) {
     if (!currentConv.value) return null
     const msgs = currentConv.value.messages
     const assistantMsg = msgs.find(m => m.id === assistantMsgId)
     if (!assistantMsg) return null
     const userMsg = msgs.find(m => m.id === assistantMsg.parent)
     if (!userMsg) return null
-    return sendMessage(userMsg.content, userMsg.parent)
+    return sendMessage(userMsg.content, userMsg.parent, opts)
   }
 
   // Write an AI response to a chapter's version library

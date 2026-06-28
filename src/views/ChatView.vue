@@ -30,9 +30,20 @@ const createPrompt = ref('')
 const selectedChapters = ref([])
 const promptList = ref([])
 
+const EFFORTS = [
+  { id: '', label: 'Default' },
+  { id: 'low', label: 'Low' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'high', label: 'High' },
+]
+
 const input = ref('')
 const messagesEl = ref(null)
 const toast = ref('')
+
+// Live model/effort switching during conversation
+const activeModel = ref('gpt-4o')
+const activeEffort = ref('')
 let toastTimer = null
 
 function showToast(msg) {
@@ -127,20 +138,28 @@ async function doCreate() {
     contextChapters: selectedChapters.value,
     systemPrompt: createPrompt.value,
   })
+  activeModel.value = createModel.value
+  activeEffort.value = ''
   showCreate.value = false
   await scrollToBottom()
+}
+
+function sendOpts() {
+  const o = { model: activeModel.value }
+  if (activeEffort.value) o.reasoning_effort = activeEffort.value
+  return o
 }
 
 async function doSend() {
   if (!input.value.trim() || chat.streaming) return
   const msg = input.value
   input.value = ''
-  await chat.sendMessage(msg)
+  await chat.sendMessage(msg, undefined, sendOpts())
   await scrollToBottom()
 }
 
 async function doRegenerate(msgId) {
-  await chat.regenerate(msgId)
+  await chat.regenerate(msgId, sendOpts())
   await scrollToBottom()
 }
 
@@ -149,6 +168,104 @@ async function doCopy(content) {
     await navigator.clipboard.writeText(content)
     showToast(t('chat.copied'))
   } catch {}
+}
+
+// Edit prompt (creates a branch)
+const editingMsgId = ref('')
+const editingContent = ref('')
+
+function startEditPrompt(msg) {
+  editingMsgId.value = msg.id
+  editingContent.value = msg.content
+}
+
+function cancelEditPrompt() {
+  editingMsgId.value = ''
+  editingContent.value = ''
+}
+
+async function submitEditPrompt(msg) {
+  if (!editingContent.value.trim() || chat.streaming) return
+  const newContent = editingContent.value.trim()
+  editingMsgId.value = ''
+  editingContent.value = ''
+  await chat.sendMessage(newContent, msg.parent, sendOpts())
+  await scrollToBottom()
+}
+
+// Conversation tree viewer
+const showTreeViewer = ref(false)
+
+const convTreeLayers = computed(() => {
+  if (!chat.currentConv?.messages?.length) return []
+  const msgs = chat.currentConv.messages
+  const childMap = {}
+  for (const m of msgs) {
+    if (m.parent) {
+      if (!childMap[m.parent]) childMap[m.parent] = []
+      childMap[m.parent].push(m)
+    }
+  }
+  const root = msgs.find(m => !m.parent)
+  if (!root) return []
+
+  const layers = []
+  let level = [root]
+  while (level.length) {
+    layers.push(level)
+    const next = []
+    for (const m of level) {
+      for (const c of (childMap[m.id] || [])) next.push(c)
+    }
+    level = next
+  }
+  return layers
+})
+
+const activePathIds = computed(() => new Set(chat.activePath.map(m => m.id)))
+
+function selectConvTreeNode(msg) {
+  if (!chat.currentConv) return
+  const allMsgs = chat.currentConv.messages
+  const byId = Object.fromEntries(allMsgs.map(m => [m.id, m]))
+
+  // Walk up to root
+  const path = []
+  let cur = msg
+  while (cur) {
+    path.unshift(cur)
+    cur = cur.parent ? byId[cur.parent] : null
+  }
+
+  // Walk down following last child
+  cur = msg
+  const childMap = {}
+  for (const m of allMsgs) {
+    if (m.parent) {
+      if (!childMap[m.parent]) childMap[m.parent] = []
+      childMap[m.parent].push(m)
+    }
+  }
+  while (childMap[cur.id]?.length) {
+    cur = childMap[cur.id][childMap[cur.id].length - 1]
+    path.push(cur)
+  }
+
+  // Reorder: for each node on the path, make it the last sibling so activePath picks it
+  for (const node of path) {
+    if (!node.parent) continue
+    const current = chat.currentConv.messages
+    const siblings = current.filter(m => m.parent === node.parent && m.role === node.role && m.id !== node.id)
+    const rest = current.filter(m => !(m.parent === node.parent && m.role === node.role))
+    chat.currentConv.messages = [...rest, ...siblings, node]
+  }
+
+  showTreeViewer.value = false
+}
+
+function convMsgPreview(msg) {
+  if (msg.role === 'system') return '[System]'
+  return (msg.content || '').replace(/\n/g, ' ').slice(0, 50) || '(empty)'
 }
 
 // Write to chapter
@@ -201,7 +318,7 @@ onMounted(() => {
           :key="conv.id"
           class="chat-sidebar-item"
           :class="{ active: chat.currentConv?.id === conv.id }"
-          @click="chat.loadConversation(conv.id)"
+          @click="chat.loadConversation(conv.id).then(() => { if (chat.currentConv) activeModel = chat.currentConv.model })"
         >
           <div class="item-title">{{ conv.title }}</div>
           <div class="item-meta">{{ conv.model }} · {{ new Date(conv.updatedAt).toLocaleDateString() }}</div>
@@ -260,7 +377,13 @@ onMounted(() => {
       <template v-else>
         <div class="chat-header">
           <h3>{{ chat.currentConv.title }}</h3>
-          <span class="chat-model">{{ chat.currentConv.model }}</span>
+          <select v-model="activeModel" class="header-select">
+            <option v-for="m in MODELS" :key="m.id" :value="m.id">{{ m.label }}</option>
+          </select>
+          <select v-model="activeEffort" class="header-select">
+            <option v-for="e in EFFORTS" :key="e.id" :value="e.id">{{ e.label }}</option>
+          </select>
+          <button class="act-btn header-tree-btn" @click="showTreeViewer = true" title="Conversation tree">🌳</button>
         </div>
 
         <div class="chat-messages" ref="messagesEl">
@@ -270,26 +393,53 @@ onMounted(() => {
             class="chat-msg"
             :class="msg.role"
           >
-            <div class="msg-role">{{ msg.role === 'user' ? t('conv.myPrompt') : t('conv.aiReply') }}</div>
-            <div class="msg-content" :style="msg.role === 'assistant' ? aiStyle : {}">
-              <template v-if="msg.role === 'assistant' && chat.streaming && msg.id === chat.activePath[chat.activePath.length - 1]?.id">
-                {{ chat.streamContent || '...' }}
-              </template>
-              <template v-else>{{ msg.content }}</template>
+            <div class="msg-role">
+              {{ msg.role === 'user' ? t('conv.myPrompt') : t('conv.aiReply') }}
+              <span v-if="msg.model && msg.role === 'assistant'" class="msg-model">{{ msg.model }}</span>
             </div>
 
-            <!-- Branch nav + actions for assistant messages -->
-            <div v-if="msg.role === 'assistant'" class="msg-actions">
-              <template v-if="getBranchInfo(msg).total > 1">
-                <button class="act-btn" @click="switchBranch(msg, -1)" :disabled="getBranchInfo(msg).index === 0" :title="t('chat.prevBranch')">‹</button>
-                <span class="branch-label">{{ getBranchInfo(msg).index + 1 }}/{{ getBranchInfo(msg).total }}</span>
-                <button class="act-btn" @click="switchBranch(msg, 1)" :disabled="getBranchInfo(msg).index === getBranchInfo(msg).total - 1" :title="t('chat.nextBranch')">›</button>
-                <span class="act-sep"></span>
-              </template>
-              <button class="act-btn" @click="doRegenerate(msg.id)" :disabled="chat.streaming" :title="t('chat.regenerate')">↻</button>
-              <button class="act-btn" @click="doCopy(msg.content)" :title="t('chat.copyContent')">⎘</button>
-              <button class="act-btn" @click="openWriteModal(msg.id)" :title="t('chat.writeToChapter')">⬇ {{ t('chat.writeToChapter') }}</button>
-            </div>
+            <!-- User message: editable -->
+            <template v-if="msg.role === 'user'">
+              <div v-if="editingMsgId === msg.id" class="msg-edit-area">
+                <textarea v-model="editingContent" rows="3" @keydown.enter.ctrl="submitEditPrompt(msg)"></textarea>
+                <div class="msg-edit-actions">
+                  <button class="btn btn-sm" @click="cancelEditPrompt">{{ t('common.cancel') }}</button>
+                  <button class="btn btn-sm btn-primary" @click="submitEditPrompt(msg)" :disabled="chat.streaming">{{ t('chat.send') }}</button>
+                </div>
+              </div>
+              <div v-else class="msg-content">{{ msg.content }}</div>
+              <div class="msg-actions">
+                <template v-if="getBranchInfo(msg).total > 1">
+                  <button class="act-btn" @click="switchBranch(msg, -1)" :disabled="getBranchInfo(msg).index === 0">‹</button>
+                  <span class="branch-label">{{ getBranchInfo(msg).index + 1 }}/{{ getBranchInfo(msg).total }}</span>
+                  <button class="act-btn" @click="switchBranch(msg, 1)" :disabled="getBranchInfo(msg).index === getBranchInfo(msg).total - 1">›</button>
+                  <span class="act-sep"></span>
+                </template>
+                <button class="act-btn" @click="startEditPrompt(msg)" :disabled="chat.streaming" v-if="editingMsgId !== msg.id">✎</button>
+                <button class="act-btn" @click="doCopy(msg.content)">⎘</button>
+              </div>
+            </template>
+
+            <!-- Assistant message -->
+            <template v-else>
+              <div class="msg-content" :style="aiStyle">
+                <template v-if="chat.streaming && msg.id === chat.activePath[chat.activePath.length - 1]?.id">
+                  {{ chat.streamContent || '...' }}
+                </template>
+                <template v-else>{{ msg.content }}</template>
+              </div>
+              <div class="msg-actions">
+                <template v-if="getBranchInfo(msg).total > 1">
+                  <button class="act-btn" @click="switchBranch(msg, -1)" :disabled="getBranchInfo(msg).index === 0">‹</button>
+                  <span class="branch-label">{{ getBranchInfo(msg).index + 1 }}/{{ getBranchInfo(msg).total }}</span>
+                  <button class="act-btn" @click="switchBranch(msg, 1)" :disabled="getBranchInfo(msg).index === getBranchInfo(msg).total - 1">›</button>
+                  <span class="act-sep"></span>
+                </template>
+                <button class="act-btn" @click="doRegenerate(msg.id)" :disabled="chat.streaming">↻</button>
+                <button class="act-btn" @click="doCopy(msg.content)">⎘</button>
+                <button class="act-btn" @click="openWriteModal(msg.id)">⬇ {{ t('chat.writeToChapter') }}</button>
+              </div>
+            </template>
           </div>
 
           <div v-if="chat.streaming" class="chat-streaming-indicator">{{ t('chat.sending') }}</div>
@@ -330,6 +480,35 @@ onMounted(() => {
           <div class="modal-actions">
             <button class="btn" @click="showWriteModal = false">{{ t('common.cancel') }}</button>
             <button class="btn btn-primary" @click="doWrite" :disabled="!writeTarget">{{ t('chat.writeToChapter') }}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Conversation tree viewer -->
+    <Transition name="fade">
+      <div v-if="showTreeViewer" class="modal-backdrop" @click="showTreeViewer = false">
+        <div class="modal-box conv-tree-modal" @click.stop>
+          <div class="conv-tree-header">
+            <h4>Conversation Tree</h4>
+            <button class="act-btn" @click="showTreeViewer = false">✕</button>
+          </div>
+          <div class="conv-tree-body">
+            <div v-for="(layer, depth) in convTreeLayers" :key="depth" class="conv-tree-layer">
+              <div v-if="depth > 0" class="conv-tree-connector"></div>
+              <div class="conv-tree-nodes">
+                <div
+                  v-for="msg in layer"
+                  :key="msg.id"
+                  class="conv-tree-node"
+                  :class="{ selected: activePathIds.has(msg.id), user: msg.role === 'user', assistant: msg.role === 'assistant', system: msg.role === 'system' }"
+                  @click="selectConvTreeNode(msg)"
+                >
+                  <div class="ctn-role">{{ msg.role === 'user' ? 'U' : msg.role === 'assistant' ? 'A' : 'S' }}</div>
+                  <div class="ctn-preview">{{ convMsgPreview(msg) }}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -531,12 +710,14 @@ onMounted(() => {
   font-weight: 600;
   margin: 0;
 }
-.chat-model {
-  font-size: 11px;
-  color: var(--text-muted);
+.header-select {
+  font-size: 12px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg-card, var(--bg));
   border: 1px solid var(--rule);
-  padding: 2px 8px;
-  letter-spacing: 0.02em;
+  padding: 3px 6px;
+  cursor: pointer;
 }
 
 /* ── Messages ─────────────────────────────────────────────── */
@@ -701,6 +882,43 @@ onMounted(() => {
 }
 
 /* ── Transition ───────────────────────────────────────────── */
+/* ── Edit prompt area ─────────────────────────────────────── */
+.msg-edit-area textarea {
+  width: 100%; font-family: var(--font-ui); font-size: 14px;
+  padding: 8px 10px; border: 1px solid var(--hot, #c44);
+  background: var(--bg-card); color: var(--text); resize: vertical; box-sizing: border-box;
+}
+.msg-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+.msg-model { font-size: 10px; color: var(--text-muted); margin-left: 6px; font-weight: 400; }
+
+/* ── Header tree button ──────────────────────────────────── */
+.header-tree-btn { font-size: 16px !important; padding: 2px 8px !important; }
+
+/* ── Conversation tree modal ─────────────────────────────── */
+.conv-tree-modal { min-width: 500px; max-width: 80vw; max-height: 80vh; display: flex; flex-direction: column; }
+.conv-tree-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.conv-tree-header h4 { margin: 0; font-size: 15px; }
+.conv-tree-body { overflow: auto; flex: 1; }
+.conv-tree-layer { position: relative; }
+.conv-tree-connector { height: 16px; display: flex; justify-content: center; }
+.conv-tree-connector::before { content: ''; display: block; width: 2px; height: 100%; background: var(--rule); margin: 0 auto; }
+.conv-tree-nodes { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.conv-tree-node {
+  width: 160px; padding: 8px 10px; border: 2px solid var(--rule);
+  background: var(--bg-card, var(--bg)); cursor: pointer;
+  transition: all var(--t-fast) var(--ease); display: flex; gap: 6px; align-items: flex-start;
+}
+.conv-tree-node:hover { border-color: var(--text-soft); }
+.conv-tree-node.selected { border-color: var(--hot, #c44); background: color-mix(in srgb, var(--hot, #c44) 8%, var(--bg-card, var(--bg))); }
+.conv-tree-node.system { opacity: 0.5; }
+.ctn-role {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  width: 16px; height: 16px; line-height: 16px; text-align: center; flex-shrink: 0;
+}
+.conv-tree-node.user .ctn-role { color: var(--hot, #c44); }
+.conv-tree-node.assistant .ctn-role { color: #6ab04c; }
+.ctn-preview { font-size: 11px; color: var(--text-soft); line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

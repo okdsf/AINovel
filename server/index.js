@@ -1739,7 +1739,7 @@ app.post('/api/ai/chat', async (req, res) => {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
 
-    const { messages, model, temperature, max_tokens } = req.body;
+    const { messages, model, temperature, max_tokens, reasoning_effort } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array required' });
     }
@@ -1751,6 +1751,7 @@ app.post('/api/ai/chat', async (req, res) => {
     };
     if (temperature !== undefined) body.temperature = temperature;
     if (max_tokens !== undefined) body.max_tokens = max_tokens;
+    if (reasoning_effort) body.reasoning_effort = reasoning_effort;
 
     const upstream = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
