@@ -2,11 +2,17 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import PromptLab from '../components/PromptLab.vue'
 import ImmersiveReader from '../components/ImmersiveReader.vue'
+import TextFindReplace from '../components/TextFindReplace.vue'
+import DraftCalendarFilter from '../components/DraftCalendarFilter.vue'
 import { useI18n } from '../i18n'
 import { useSettingsStore } from '../stores/settings'
+import { draftCreatedDateKey } from '../utils/dateKey'
+import { useTextHistory } from '../composables/useTextHistory'
+import { useRoute } from 'vue-router'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
+const route = useRoute()
 const showSettings = ref(false)
 const immersiveDraft = ref(false)
 
@@ -16,9 +22,10 @@ const editorStyle = computed(() => ({
   lineHeight: String(settings.lineHeight),
 }))
 
-const viewMode = ref('drafts')
+const viewMode = ref(route.query.mode === 'promptlab' ? 'promptlab' : 'drafts')
 const showDraftList = ref(false)
 const drafts = ref([])
+const selectedDraftDate = ref('')
 const currentId = ref('')
 const title = ref('')
 const content = ref('')
@@ -29,10 +36,32 @@ const loading = ref(false)
 const autosaveStatus = ref('')  // '', 'saving', 'saved', 'error'
 const lastSavedAt = ref(0)
 
+const filteredDrafts = computed(() => {
+  if (!selectedDraftDate.value) return drafts.value
+  return drafts.value.filter(draft => draftCreatedDateKey(draft) === selectedDraftDate.value)
+})
+
 const AUTOSAVE_DELAY = 2000
 const LS_PREFIX = 'novelweb:draft-backup:'
 
 function lsKey(id) { return LS_PREFIX + id }
+
+async function requestJson(url, options) {
+  const res = await fetch(url, options)
+  const raw = await res.text()
+  let data = null
+  if (raw) {
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      throw new Error(`服务器返回了无效数据 (HTTP ${res.status})`)
+    }
+  }
+  if (!res.ok) {
+    throw new Error(data?.error || `请求失败 (HTTP ${res.status})`)
+  }
+  return data
+}
 
 function backupToLocal(id, t, c) {
   if (!id) return
@@ -63,15 +92,12 @@ let compareTimerB = null
 const mainEditorRef = ref(null)
 const compareEditorRefA = ref(null)
 const compareEditorRefB = ref(null)
-
-function execEdit(textareaRef, cmd) {
-  const el = textareaRef?.value
-  if (!el) return
-  el.focus()
-  // execCommand is deprecated but is the only way to drive a textarea's native
-  // undo stack — exactly what Ctrl+Z does. Falls back silently if unsupported.
-  try { document.execCommand(cmd) } catch (e) {}
-}
+const mainHistory = useTextHistory(content, mainEditorRef, {
+  contextKey: currentId,
+  maxEntries: 160,
+})
+const mainCanUndo = mainHistory.canUndo
+const mainCanRedo = mainHistory.canRedo
 
 // Compare mode
 const compareMode = ref(false)
@@ -87,8 +113,9 @@ const compareLoadingA = ref(false)
 const compareLoadingB = ref(false)
 
 async function fetchDrafts() {
-  const res = await fetch('/api/drafts')
-  drafts.value = await res.json()
+  const data = await requestJson('/api/drafts')
+  if (!Array.isArray(data)) throw new Error('草稿索引格式无效')
+  drafts.value = data
 }
 
 async function loadDraft(id) {
@@ -97,14 +124,14 @@ async function loadDraft(id) {
     title.value = ''
     content.value = ''
     dirty.value = false
+    mainHistory.clearAll()
     return
   }
   // Flush any pending autosave on the previous draft before switching
   if (mainTimer) { clearTimeout(mainTimer); mainTimer = null; await saveCurrent({ silent: true }) }
   loading.value = true
   try {
-    const res = await fetch(`/api/drafts/${id}`)
-    const data = await res.json()
+    const data = await requestJson(`/api/drafts/${id}`)
     currentId.value = data.id
     title.value = data.title
     content.value = data.content
@@ -130,6 +157,11 @@ async function loadDraft(id) {
         clearLocalBackup(id)
       }
     }
+    // Loading server/local recovery data establishes a fresh baseline. It must
+    // not become an undo step belonging to the previously opened draft.
+    mainHistory.clear(id)
+  } catch (e) {
+    message.value = t('drafts.loadFailed', { error: e.message })
   } finally {
     loading.value = false
   }
@@ -140,12 +172,11 @@ async function newDraft() {
   saving.value = true
   message.value = ''
   try {
-    const res = await fetch('/api/drafts', {
+    const data = await requestJson('/api/drafts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: '', content: '' })  // title 空 → 后端自动分配 "草稿N"
     })
-    const data = await res.json()
     await fetchDrafts()
     await loadDraft(data.id)
     message.value = t('drafts.draftCreated')
@@ -169,7 +200,7 @@ async function saveCurrent({ silent = false } = {}) {
     message.value = ''
   }
   try {
-    await fetch(`/api/drafts/${id}`, {
+    await requestJson(`/api/drafts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: t, content: c })
@@ -206,7 +237,7 @@ async function duplicateCurrent() {
   if (!currentId.value) return
   saving.value = true
   try {
-    const res = await fetch('/api/drafts', {
+    const data = await requestJson('/api/drafts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -215,7 +246,6 @@ async function duplicateCurrent() {
         sourceId: currentId.value
       })
     })
-    const data = await res.json()
     await fetchDrafts()
     await loadDraft(data.id)
     message.value = t('drafts.duplicated')
@@ -228,11 +258,22 @@ async function duplicateCurrent() {
 async function deleteDraft(id) {
   const d = drafts.value.find(x => x.id === id)
   if (!confirm(t('drafts.confirmDelete', { title: d?.title || id }))) return
-  await fetch(`/api/drafts/${id}`, { method: 'DELETE' })
-  await fetchDrafts()
-  if (currentId.value === id) {
-    await loadDraft('')
+  try {
+    await requestJson(`/api/drafts/${id}`, { method: 'DELETE' })
+    await fetchDrafts()
+    if (currentId.value === id) {
+      await loadDraft('')
+    }
+  } catch (e) {
+    message.value = t('drafts.loadFailed', { error: e.message })
   }
+}
+
+function onImmersiveDraftSave(nextContent) {
+  mainHistory.capture()
+  content.value = nextContent
+  dirty.value = true
+  scheduleAutosave()
 }
 
 watch([title, content], () => {
@@ -242,7 +283,7 @@ watch([title, content], () => {
     backupToLocal(currentId.value, title.value, content.value)
     scheduleAutosave()
   }
-})
+}, { flush: 'sync' })
 
 // Compare
 async function startCompare() {
@@ -264,8 +305,7 @@ async function loadCompareSide(side) {
   if (side === 'A') compareLoadingA.value = true
   else compareLoadingB.value = true
   try {
-    const res = await fetch(`/api/drafts/${id}`)
-    const data = await res.json()
+    const data = await requestJson(`/api/drafts/${id}`)
     let useTitle = data.title
     let useContent = data.content
     let dirtyAfter = false
@@ -297,6 +337,8 @@ async function loadCompareSide(side) {
       compareTitleB.value = useTitle
       compareDirtyB.value = dirtyAfter
     }
+  } catch (e) {
+    message.value = t('drafts.loadFailed', { error: e.message })
   } finally {
     if (side === 'A') compareLoadingA.value = false
     else compareLoadingB.value = false
@@ -314,7 +356,7 @@ async function saveCompareSide(side, { silent = false } = {}) {
     message.value = ''
   }
   try {
-    await fetch(`/api/drafts/${id}`, {
+    await requestJson(`/api/drafts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: t, content: c })
@@ -363,14 +405,14 @@ watch([compareTitleA, compareContentA], () => {
     backupToLocal(compareIdA.value, compareTitleA.value, compareContentA.value)
     scheduleCompareAutosave('A')
   }
-})
+}, { flush: 'sync' })
 watch([compareTitleB, compareContentB], () => {
   if (compareIdB.value && !compareLoadingB.value) {
     compareDirtyB.value = true
     backupToLocal(compareIdB.value, compareTitleB.value, compareContentB.value)
     scheduleCompareAutosave('B')
   }
-})
+}, { flush: 'sync' })
 
 function exitCompare() {
   if ((compareDirtyA.value || compareDirtyB.value) &&
@@ -410,7 +452,9 @@ const autosaveLabel = computed(() => {
 })
 
 onMounted(() => {
-  fetchDrafts()
+  fetchDrafts().catch(e => {
+    message.value = t('drafts.loadFailed', { error: e.message })
+  })
   window.addEventListener('beforeunload', beforeUnloadHandler)
 })
 
@@ -430,7 +474,7 @@ onBeforeUnmount(() => {
       :markdown="content"
       :title="title"
       @close="immersiveDraft = false"
-      @save="c => { content = c; dirty = true; scheduleAutosave() }"
+      @save="onImmersiveDraftSave"
     />
 
     <!-- ====== Top bar ====== -->
@@ -509,9 +553,16 @@ onBeforeUnmount(() => {
           <button class="d-mode-btn" :class="{ active: viewMode === 'promptlab' }" @click="viewMode = 'promptlab'">{{ t('drafts.modePromptLab') }}</button>
         </div>
         <template v-if="viewMode === 'drafts'">
-          <button v-if="!compareMode && currentId" class="d-icon-btn" @click="execEdit(mainEditorRef, 'undo')" :title="t('drafts.undoTitle')">↶</button>
-          <button v-if="!compareMode && currentId" class="d-icon-btn" @click="execEdit(mainEditorRef, 'redo')" :title="t('drafts.redoTitle')">↷</button>
+          <button v-if="!compareMode && currentId" class="d-icon-btn" @click="mainHistory.undo()" :disabled="!mainCanUndo" :title="t('drafts.undoTitle')">↶</button>
+          <button v-if="!compareMode && currentId" class="d-icon-btn" @click="mainHistory.redo()" :disabled="!mainCanRedo" :title="t('drafts.redoTitle')">↷</button>
           <button v-if="!compareMode && currentId" class="d-icon-btn" @click="immersiveDraft = true" :title="t('plab.readMode')">📖</button>
+          <TextFindReplace
+            v-if="!compareMode && currentId"
+            v-model="content"
+            :editor="mainEditorRef"
+            :target-label="title"
+            @before-change="mainHistory.capture"
+          />
           <button class="d-icon-btn" @click="compareMode ? exitCompare() : startCompare()" :title="compareMode ? t('drafts.exitCompare') : t('drafts.compareMode')">⇄</button>
           <button v-if="!compareMode && currentId" class="d-icon-btn" @click="duplicateCurrent" :disabled="saving" :title="t('drafts.duplicate')">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor"><path d="M7 2a2 2 0 00-2 2v1H4a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-1h1a2 2 0 002-2V4a2 2 0 00-2-2H7zm0 2h9v9h-1V7a2 2 0 00-2-2H7V4zM4 7h9v9H4V7z"/></svg>
@@ -537,6 +588,9 @@ onBeforeUnmount(() => {
           class="d-editor"
           :style="editorStyle"
           :placeholder="t('drafts.bodyPlaceholder')"
+          @beforeinput="mainHistory.onBeforeInput"
+          @input="mainHistory.onInput"
+          @keydown="mainHistory.onKeydown"
         ></textarea>
       </div>
 
@@ -581,10 +635,13 @@ onBeforeUnmount(() => {
           <span>{{ t('drafts.title') }}</span>
           <button class="d-icon-btn" @click="showDraftList = false">✕</button>
         </div>
+        <DraftCalendarFilter v-model="selectedDraftDate" :drafts="drafts" />
         <div class="d-panel-list">
-          <div v-if="drafts.length === 0" class="d-panel-empty">{{ t('drafts.empty') }}</div>
+          <div v-if="filteredDrafts.length === 0" class="d-panel-empty">
+            {{ selectedDraftDate ? t('drafts.filteredEmpty') : t('drafts.empty') }}
+          </div>
           <div
-            v-for="d in drafts" :key="d.id"
+            v-for="d in filteredDrafts" :key="d.id"
             class="d-panel-item" :class="{ active: currentId === d.id }"
             @click="loadDraft(d.id); showDraftList = false"
           >

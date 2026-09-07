@@ -39,6 +39,7 @@ const COPY_FILES = [
   'README.md',
   'LICENSE',
   'DEMO.md',
+  'GEMINI-AUTOMATION.md',
   'index.html',
   'package.json',
   'package-lock.json',
@@ -49,10 +50,16 @@ const COPY_FILES = [
 const COPY_DIRS_RECURSIVE = [
   'src',
   'server',
+  'extensions',
+  'tests',
 ]
 const COPY_SCRIPT_FILES = [
   'scripts/fetch-fonts.mjs',
   'scripts/ensure-fonts.mjs',
+  'scripts/find-ports.mjs',
+  'scripts/start-gemini-runner.ps1',
+  'scripts/native-gemini-paste.ps1',
+  'scripts/codex-runner-browser.ps1',
   'scripts/publish-public.mjs',
   'scripts/public-gitignore.template.txt',
 ]
@@ -94,6 +101,10 @@ function run(cmd, args, opts = {}) {
 }
 
 async function copyFile(src, dst) {
+  // Recursive directory copies bypass .gitignore. Never export extension
+  // signing keys, packaged builds, or a machine's Runner pairing bootstrap.
+  const name = path.basename(src)
+  if (/\.(pem|crx)$/i.test(name) || name.toLowerCase() === 'bootstrap.local.json') return
   await fs.mkdir(path.dirname(dst), { recursive: true })
   await fs.copyFile(src, dst)
 }
@@ -109,7 +120,7 @@ async function copyDir(src, dst) {
 }
 
 function isTextFile(name) {
-  return /\.(md|txt|js|mjs|ts|vue|json|html|css|svg|yml|yaml|gitignore|bat|sh)$/i.test(name)
+  return /\.(md|txt|js|mjs|ts|vue|json|html|css|svg|yml|yaml|gitignore|bat|sh|ps1)$/i.test(name)
     || name === '.gitignore' || name === 'LICENSE'
 }
 

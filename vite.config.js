@@ -11,9 +11,13 @@ export default defineConfig({
   server: {
     host: true,
     port: webPort,
+    // The launcher already selects a free frontend/backend pair. Silently
+    // incrementing only the Vite port would open the wrong URL and can leave
+    // the frontend paired with a different backend.
+    strictPort: true,
     proxy: {
-      '/api': apiTarget,
-      '/pieces-render': apiTarget
+      '/api': { target: apiTarget, xfwd: true },
+      '/pieces-render': { target: apiTarget, xfwd: true }
     }
   }
 })

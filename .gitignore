@@ -6,6 +6,14 @@ dist/
 .claude/
 .vscode/
 .private/
+.env
+.env.*
+!.env.example
+
+# Machine-specific Runner pairing and packaged extension credentials/artifacts.
+extensions/**/*.pem
+extensions/**/*.crx
+**/bootstrap.local.json
 
 # Build artifacts
 data/export/

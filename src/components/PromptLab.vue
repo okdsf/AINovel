@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSettingsStore } from '../stores/settings'
 import ImmersiveReader from './ImmersiveReader.vue'
+import TextFindReplace from './TextFindReplace.vue'
+import { useTextHistory } from '../composables/useTextHistory'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
+const route = useRoute()
 
 const editorStyle = computed(() => ({
   fontFamily: settings.currentFont().family,
@@ -34,6 +38,57 @@ const fullscreen = ref(null)
 const slotPanelOpen = ref(false)
 const immersiveContent = ref(null)
 const immersiveTitle = ref('')
+const promptEditorRef = ref(null)
+const responseEditorRef = ref(null)
+const fullscreenPromptEditorRef = ref(null)
+const fullscreenResponseEditorRef = ref(null)
+
+const activeEditorKey = computed(() =>
+  fullscreen.value != null ? fullscreen.value : expandedDrawer.value
+)
+
+const activeEditorContent = computed({
+  get() {
+    if (activeEditorKey.value === 'prompt') return promptContent.value
+    if (typeof activeEditorKey.value === 'number') {
+      return responses.value[activeEditorKey.value] || ''
+    }
+    return ''
+  },
+  set(value) {
+    if (activeEditorKey.value === 'prompt') {
+      promptContent.value = value
+    } else if (typeof activeEditorKey.value === 'number') {
+      onResponseInput(activeEditorKey.value, value)
+    }
+  },
+})
+
+const activeEditorElement = computed(() => {
+  if (fullscreen.value === 'prompt') return fullscreenPromptEditorRef.value
+  if (typeof fullscreen.value === 'number') return fullscreenResponseEditorRef.value
+  if (expandedDrawer.value === 'prompt') return promptEditorRef.value
+  if (typeof expandedDrawer.value === 'number') return responseEditorRef.value
+  return null
+})
+
+const activeEditorLabel = computed(() =>
+  activeEditorKey.value === 'prompt' ? 'Prompt' :
+    typeof activeEditorKey.value === 'number' ? `R${activeEditorKey.value}` : ''
+)
+
+const activeEditorContext = computed(() =>
+  currentGroupId.value && activeEditorKey.value != null
+    ? `${currentGroupId.value}:${activeEditorKey.value}`
+    : ''
+)
+
+const promptHistory = useTextHistory(activeEditorContent, activeEditorElement, {
+  contextKey: activeEditorContext,
+  maxEntries: 160,
+})
+const promptCanUndo = promptHistory.canUndo
+const promptCanRedo = promptHistory.canRedo
 
 function initResponses(count) {
   const r = {}; const rd = {}
@@ -103,6 +158,7 @@ async function selectGroup(id) {
 }
 
 async function loadGroup(id) {
+  promptHistory.clearAll()
   if (!id) {
     currentGroupId.value = ''
     groupTitle.value = ''
@@ -238,7 +294,7 @@ function onResponseInput(slot, value) {
 
 async function addSlot() {
   if (!currentGroupId.value) return
-  if (rCount.value >= 20) { showMsg(t('plab.maxSlots')); return }
+  if (rCount.value >= 101) { showMsg(t('plab.maxSlots')); return }
   saving.value = true
   try {
     const res = await fetch(`/api/prompt-groups/${currentGroupId.value}/add-slot`, { method: 'POST' })
@@ -464,13 +520,13 @@ watch(groupTitle, () => {
     titleDirty.value = true
     scheduleAutoSaveTitle()
   }
-})
+}, { flush: 'sync' })
 watch(promptContent, () => {
   if (currentGroupId.value && !loading.value) {
     promptDirty.value = true
     scheduleAutoSavePrompt()
   }
-})
+}, { flush: 'sync' })
 
 const activeWordCount = computed(() => (responses.value[activeSlot.value] || '').replace(/\s/g, '').length)
 const promptWordCount = computed(() => (promptContent.value || '').replace(/\s/g, '').length)
@@ -506,7 +562,16 @@ function fmtTime(iso) {
   return `${d.getFullYear()}-${m}-${day} ${h}:${min}`
 }
 
-onMounted(fetchGroups)
+onMounted(async () => {
+  await fetchGroups()
+  const requestedGroup = typeof route.query.group === 'string' ? route.query.group : ''
+  if (requestedGroup) await loadGroup(requestedGroup)
+})
+
+watch(() => route.query.group, async (value) => {
+  const requestedGroup = typeof value === 'string' ? value : ''
+  if (requestedGroup && requestedGroup !== currentGroupId.value) await loadGroup(requestedGroup)
+})
 </script>
 
 <template>
@@ -532,13 +597,26 @@ onMounted(fetchGroups)
           <span class="pl-fs-meta">{{ t('drafts.wordCount', { count: fsWordCount.toLocaleString() }) }}</span>
           <span v-if="fsDirty" class="pl-fs-dirty">{{ t('plab.unsaved') }}</span>
           <div style="flex:1"></div>
+          <TextFindReplace
+            v-model="activeEditorContent"
+            :editor="activeEditorElement"
+            :target-label="activeEditorLabel"
+            @before-change="promptHistory.capture"
+          />
+          <button class="pl-fs-btn" @click="promptHistory.undo()" :disabled="!promptCanUndo" :title="t('drafts.undoTitle')">↶</button>
+          <button class="pl-fs-btn" @click="promptHistory.redo()" :disabled="!promptCanRedo" :title="t('drafts.redoTitle')">↷</button>
           <button class="pl-fs-btn pl-fs-save" @click="saveFullscreenSlot" :disabled="saving || !fsDirty">{{ t('common.save') }}</button>
           <button class="pl-fs-btn" @click="closeFullscreen">✕</button>
         </div>
         <!-- Prompt fullscreen -->
-        <textarea v-if="fullscreen === 'prompt'" v-model="promptContent" class="pl-fs-editor" :style="editorStyle" :placeholder="t('plab.promptPh')" spellcheck="false"></textarea>
+        <textarea v-if="fullscreen === 'prompt'" ref="fullscreenPromptEditorRef" v-model="promptContent" class="pl-fs-editor" :style="editorStyle" :placeholder="t('plab.promptPh')" spellcheck="false"
+          @beforeinput="promptHistory.onBeforeInput" @input="promptHistory.onInput" @keydown="promptHistory.onKeydown"></textarea>
         <!-- Response fullscreen -->
-        <textarea v-else :value="responses[fullscreen]" @input="e => onResponseInput(fullscreen, e.target.value)" class="pl-fs-editor" :style="editorStyle" :placeholder="t('plab.responsePh', { n: fullscreen })" spellcheck="false"></textarea>
+        <textarea v-else ref="fullscreenResponseEditorRef" :value="responses[fullscreen]"
+          @beforeinput="promptHistory.onBeforeInput"
+          @input="e => { onResponseInput(fullscreen, e.target.value); promptHistory.onInput(e) }"
+          @keydown="promptHistory.onKeydown"
+          class="pl-fs-editor" :style="editorStyle" :placeholder="t('plab.responsePh', { n: fullscreen })" spellcheck="false"></textarea>
       </div>
     </Teleport>
 
@@ -573,6 +651,15 @@ onMounted(fetchGroups)
           R{{ activeSlot }}
           <span class="pl-slot-btn-badge">{{ rCount }}</span>
         </button>
+        <TextFindReplace
+          v-if="activeEditorKey != null"
+          v-model="activeEditorContent"
+          :editor="activeEditorElement"
+          :target-label="activeEditorLabel"
+          @before-change="promptHistory.capture"
+        />
+        <button v-if="activeEditorKey != null" class="d-icon-btn" @click="promptHistory.undo()" :disabled="!promptCanUndo" :title="t('drafts.undoTitle')">↶</button>
+        <button v-if="activeEditorKey != null" class="d-icon-btn" @click="promptHistory.redo()" :disabled="!promptCanRedo" :title="t('drafts.redoTitle')">↷</button>
         <button class="d-icon-btn" @click="startCompare" :title="t('plab.compareBtn')">⇄</button>
         <button class="d-icon-btn" @click="deleteGroup(currentGroupId)" :title="t('common.delete')">
           <svg viewBox="0 0 20 20" width="15" height="15" fill="currentColor"><path d="M6 2a1 1 0 00-1 1v1H3v2h14V4h-2V3a1 1 0 00-1-1H6zm0 2V3h8v1H6zM4 7v9a2 2 0 002 2h8a2 2 0 002-2V7H4zm3 2h2v7H7V9zm4 0h2v7h-2V9z"/></svg>
@@ -596,7 +683,8 @@ onMounted(fetchGroups)
               <button class="pl-drawer-action" @click.stop="openFullscreen('prompt')" :title="t('plab.fullscreen')">⤢</button>
             </div>
             <div v-if="expandedDrawer === 'prompt'" class="pl-drawer-body">
-              <textarea v-model="promptContent" class="pl-drawer-editor" :style="editorStyle" :placeholder="t('plab.promptPh')"></textarea>
+              <textarea ref="promptEditorRef" v-model="promptContent" class="pl-drawer-editor" :style="editorStyle" :placeholder="t('plab.promptPh')"
+                @beforeinput="promptHistory.onBeforeInput" @input="promptHistory.onInput" @keydown="promptHistory.onKeydown"></textarea>
             </div>
           </div>
 
@@ -615,7 +703,11 @@ onMounted(fetchGroups)
               <button class="pl-drawer-action" @click.stop="openFullscreen(activeSlot)" :title="t('plab.fullscreen')">⤢</button>
             </div>
             <div v-if="expandedDrawer === activeSlot" class="pl-drawer-body">
-              <textarea :value="responses[activeSlot]" @input="e => onResponseInput(activeSlot, e.target.value)" class="pl-drawer-editor" :style="editorStyle" :placeholder="t('plab.responsePh', { n: activeSlot })"></textarea>
+              <textarea ref="responseEditorRef" :value="responses[activeSlot]"
+                @beforeinput="promptHistory.onBeforeInput"
+                @input="e => { onResponseInput(activeSlot, e.target.value); promptHistory.onInput(e) }"
+                @keydown="promptHistory.onKeydown"
+                class="pl-drawer-editor" :style="editorStyle" :placeholder="t('plab.responsePh', { n: activeSlot })"></textarea>
             </div>
           </div>
         </div>
@@ -645,7 +737,7 @@ onMounted(fetchGroups)
               </div>
             </div>
             <footer class="pl-panel-foot">
-              <button class="pl-panel-add" @click="addSlot" :disabled="saving || rCount >= 20">{{ t('plab.addSlot') }}</button>
+              <button class="pl-panel-add" @click="addSlot" :disabled="saving || rCount >= 101">{{ t('plab.addSlot') }}</button>
             </footer>
           </aside>
         </Transition>

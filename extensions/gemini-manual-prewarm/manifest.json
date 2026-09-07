@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Manual Prewarm",
+  "version": "0.2.0",
+  "description": "Prewarms the signed-in Gemini connection immediately before a manual send or Redo.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Gemini Manual Prewarm",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "core.js",
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

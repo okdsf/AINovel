@@ -4,13 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
     "dev": "node scripts/ensure-fonts.mjs && concurrently --kill-others \"vite\" \"node server/index.js\"",
     "dev:front": "vite",
     "dev:server": "node server/index.js",
     "build": "vite build",
+    "test": "node --test",
+    "gemini": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-gemini-runner.ps1",
+    "gemini:browser": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-runner-browser.ps1",
     "preview": "vite preview",
     "fonts": "node scripts/fetch-fonts.mjs",
     "publish": "node scripts/publish-public.mjs"

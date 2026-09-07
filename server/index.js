@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { registerAutomationRoutes } from './automation-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -691,18 +692,33 @@ const CN = ['零','一','二','三','四','五','六','七','八','九','十',
   '四十一','四十二','四十三','四十四','四十五','四十六','四十七','四十八','四十九','五十'];
 function cn(n) { return n < CN.length ? CN[n] : String(n); }
 
+function requestedChapterIds(req, meta) {
+  const allIds = meta.volumes.flatMap(vol => vol.chapters.map(ch => ch.id));
+  if (req.body?.chapterIds === undefined) return new Set(allIds);
+  if (!Array.isArray(req.body.chapterIds)) return null;
+  const validIds = new Set(allIds);
+  return new Set(req.body.chapterIds.filter(id => typeof id === 'string' && validIds.has(id)));
+}
+
 app.post('/api/books/:bookId/export/novel', async (req, res) => {
   try {
     const meta = await readMeta(req.params.bookId);
+    const chapterIds = requestedChapterIds(req, meta);
+    if (chapterIds === null) return res.status(400).json({ error: 'chapterIds must be an array' });
+    if (chapterIds.size === 0) return res.status(400).json({ error: 'Select at least one chapter' });
     const CHDIR = bookChaptersDir(req.params.bookId);
     const EXPORT_DIR = path.join(bookDir(req.params.bookId), 'export');
     await ensureDir(EXPORT_DIR);
     const lines = [`# ${meta.title}\n\n> ${meta.description || ''}\n\n---\n`];
     let globalCh = 0;
+    let exportVol = 0;
     for (let vi = 0; vi < meta.volumes.length; vi++) {
       const vol = meta.volumes[vi];
-      lines.push(`\n## 第${cn(vi + 1)}卷 ${vol.title}\n`);
-      for (const ch of vol.chapters) {
+      const chapters = vol.chapters.filter(ch => chapterIds.has(ch.id));
+      if (chapters.length === 0) continue;
+      exportVol++;
+      lines.push(`\n## 第${cn(exportVol)}卷 ${vol.title}\n`);
+      for (const ch of chapters) {
         globalCh++;
         lines.push(`\n### 第${cn(globalCh)}章 ${ch.title}\n`);
         let content = '';
@@ -722,15 +738,22 @@ app.post('/api/books/:bookId/export/novel', async (req, res) => {
 app.post('/api/books/:bookId/export/conversation', async (req, res) => {
   try {
     const meta = await readMeta(req.params.bookId);
+    const chapterIds = requestedChapterIds(req, meta);
+    if (chapterIds === null) return res.status(400).json({ error: 'chapterIds must be an array' });
+    if (chapterIds.size === 0) return res.status(400).json({ error: 'Select at least one chapter' });
     const CHDIR = bookChaptersDir(req.params.bookId);
     const EXPORT_DIR = path.join(bookDir(req.params.bookId), 'export');
     await ensureDir(EXPORT_DIR);
     const lines = [`# ${meta.title} — 对话记录\n\n---\n`];
     let globalCh = 0;
+    let exportVol = 0;
     for (let vi = 0; vi < meta.volumes.length; vi++) {
       const vol = meta.volumes[vi];
-      lines.push(`\n## 第${cn(vi + 1)}卷 ${vol.title}\n`);
-      for (const ch of vol.chapters) {
+      const chapters = vol.chapters.filter(ch => chapterIds.has(ch.id));
+      if (chapters.length === 0) continue;
+      exportVol++;
+      lines.push(`\n## 第${cn(exportVol)}卷 ${vol.title}\n`);
+      for (const ch of chapters) {
         globalCh++;
         lines.push(`\n### 第${cn(globalCh)}章 ${ch.title}\n`);
         let turns = [];
@@ -1014,8 +1037,12 @@ async function listJsonFiles(dir) {
     const out = [];
     for (const f of files) {
       if (!f.endsWith('.json')) continue;
-      const raw = await fs.readFile(path.join(dir, f), 'utf-8');
-      out.push(JSON.parse(raw));
+      try {
+        const raw = await fs.readFile(path.join(dir, f), 'utf-8');
+        out.push(JSON.parse(raw));
+      } catch (e) {
+        console.error(`[archive] ✘ ${path.join(dir, f)}: ${e.message}`);
+      }
     }
     return out;
   } catch { return []; }
@@ -1031,7 +1058,9 @@ async function listPiecesForBook(bookId) {
       try {
         const raw = await fs.readFile(path.join(piecesDir, d.name, 'meta.json'), 'utf-8');
         out.push(JSON.parse(raw));
-      } catch {}
+      } catch (e) {
+        console.error(`[archive] ✘ pieces/${d.name}/meta.json: ${e.message}`);
+      }
     }
     return out;
   } catch { return []; }
@@ -1190,21 +1219,81 @@ app.get('/pieces-render/:bookId/:id/:file', async (req, res) => {
 // === Drafts (草稿本) ===
 const DRAFTS_DIR = path.join(DATA_DIR, 'drafts');
 const DRAFTS_INDEX = path.join(DRAFTS_DIR, 'index.json');
+const DRAFTS_INDEX_BACKUP = path.join(DRAFTS_DIR, 'index.json.bak');
+
+function validateDraftsIndex(data) {
+  if (!Array.isArray(data)) {
+    throw new Error('Drafts index must be a JSON array');
+  }
+  const seen = new Set();
+  for (const entry of data) {
+    if (!entry || typeof entry.id !== 'string' || !/^draft-[a-z0-9]+$/.test(entry.id)) {
+      throw new Error('Drafts index contains an invalid entry');
+    }
+    if (seen.has(entry.id)) {
+      throw new Error(`Drafts index contains duplicate id: ${entry.id}`);
+    }
+    seen.add(entry.id);
+  }
+  return data;
+}
 
 async function readDraftsIndex() {
   try {
-    return JSON.parse(await fs.readFile(DRAFTS_INDEX, 'utf-8'));
-  } catch {
-    return [];
+    return validateDraftsIndex(JSON.parse(await fs.readFile(DRAFTS_INDEX, 'utf-8')));
+  } catch (e) {
+    // A missing index is a valid empty first-run state. Parse, permission, and
+    // transient I/O errors must surface instead of masquerading as an empty
+    // index, otherwise the next mutation can erase every existing entry.
+    if (e.code === 'ENOENT') return [];
+    throw new Error(`Unable to read drafts index: ${e.message}`, { cause: e });
+  }
+}
+
+async function replaceFileAtomic(targetPath, content) {
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, content, 'utf-8');
+    await fs.rename(tmpPath, targetPath);
+  } finally {
+    try { await fs.unlink(tmpPath); } catch {}
   }
 }
 
 async function writeDraftsIndex(data) {
+  validateDraftsIndex(data);
   await ensureDir(DRAFTS_DIR);
-  await fs.writeFile(DRAFTS_INDEX, JSON.stringify(data, null, 2), 'utf-8');
+  const serialized = JSON.stringify(data, null, 2);
+
+  // Preserve the previous known-good index before replacing it. The backup is
+  // also written atomically so a crash cannot corrupt both copies at once.
+  try {
+    const previous = await fs.readFile(DRAFTS_INDEX, 'utf-8');
+    validateDraftsIndex(JSON.parse(previous));
+    await replaceFileAtomic(DRAFTS_INDEX_BACKUP, previous);
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+
+  await replaceFileAtomic(DRAFTS_INDEX, serialized);
 }
 
 function draftPath(id) { return path.join(DRAFTS_DIR, `${id}.md`); }
+
+// Every draft mutation is a read-modify-write of one shared index. Serialize
+// them so autosaves, compare mode, new drafts, and multiple tabs cannot overwrite
+// one another with stale snapshots.
+let draftsMutationTail = Promise.resolve();
+function mutateDraftsIndex(mutator) {
+  const task = draftsMutationTail.then(async () => {
+    const index = await readDraftsIndex();
+    const result = await mutator(index);
+    await writeDraftsIndex(index);
+    return result;
+  });
+  draftsMutationTail = task.catch(() => {});
+  return task;
+}
 
 app.get('/api/drafts', async (req, res) => {
   try {
@@ -1231,34 +1320,46 @@ app.get('/api/drafts/:id', async (req, res) => {
 app.post('/api/drafts', async (req, res) => {
   try {
     const { title, content, sourceId } = req.body;
-    const index = await readDraftsIndex();
-    const id = `draft-${Date.now().toString(36)}`;
-    const now = new Date().toISOString();
+    const entry = await mutateDraftsIndex(async index => {
+      let idTime = Date.now();
+      let id;
+      while (true) {
+        id = `draft-${idTime.toString(36)}`;
+        try {
+          await fs.access(draftPath(id));
+          idTime += 1;
+        } catch (e) {
+          if (e.code === 'ENOENT') break;
+          throw e;
+        }
+      }
+      const now = new Date(idTime).toISOString();
 
-    // 自动命名：title 为空时分配下一个 "草稿N"（N 从 0 递增，取现有最大值 +1）
-    let finalTitle = (title || '').trim();
-    if (!finalTitle) {
-      const nums = index
-        .map(d => {
-          const m = /^草稿(\d+)$/.exec(d.title || '');
-          return m ? parseInt(m[1], 10) : -1;
-        })
-        .filter(n => n >= 0);
-      const next = nums.length ? Math.max(...nums) + 1 : 0;
-      finalTitle = `草稿${next}`;
-    }
+      // 自动命名：title 为空时分配下一个 "草稿N"（N 从 0 递增，取现有最大值 +1）
+      let finalTitle = (title || '').trim();
+      if (!finalTitle) {
+        const nums = index
+          .map(d => {
+            const m = /^草稿(\d+)$/.exec(d.title || '');
+            return m ? parseInt(m[1], 10) : -1;
+          })
+          .filter(n => n >= 0);
+        const next = nums.length ? Math.max(...nums) + 1 : 0;
+        finalTitle = `草稿${next}`;
+      }
 
-    const entry = {
-      id,
-      title: finalTitle,
-      sourceId: sourceId || null,
-      createdAt: now,
-      updatedAt: now
-    };
-    await ensureDir(DRAFTS_DIR);
-    await fs.writeFile(draftPath(id), content || '', 'utf-8');
-    index.unshift(entry);
-    await writeDraftsIndex(index);
+      const nextEntry = {
+        id,
+        title: finalTitle,
+        sourceId: sourceId || null,
+        createdAt: now,
+        updatedAt: now
+      };
+      await ensureDir(DRAFTS_DIR);
+      await fs.writeFile(draftPath(id), content || '', 'utf-8');
+      index.unshift(nextEntry);
+      return nextEntry;
+    });
     res.json(entry);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1269,19 +1370,24 @@ app.put('/api/drafts/:id', async (req, res) => {
   try {
     const id = req.params.id;
     if (!/^draft-[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
-    const index = await readDraftsIndex();
-    const meta = index.find(d => d.id === id);
-    if (!meta) return res.status(404).json({ error: 'Draft not found' });
+    const meta = await mutateDraftsIndex(async index => {
+      const entry = index.find(d => d.id === id);
+      if (!entry) {
+        const error = new Error('Draft not found');
+        error.status = 404;
+        throw error;
+      }
 
-    if (typeof req.body.title === 'string') meta.title = req.body.title.trim() || meta.title;
-    if (typeof req.body.content === 'string') {
-      await fs.writeFile(draftPath(id), req.body.content, 'utf-8');
-    }
-    meta.updatedAt = new Date().toISOString();
-    await writeDraftsIndex(index);
+      if (typeof req.body.title === 'string') entry.title = req.body.title.trim() || entry.title;
+      if (typeof req.body.content === 'string') {
+        await fs.writeFile(draftPath(id), req.body.content, 'utf-8');
+      }
+      entry.updatedAt = new Date().toISOString();
+      return { ...entry };
+    });
     res.json(meta);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
@@ -1289,13 +1395,19 @@ app.delete('/api/drafts/:id', async (req, res) => {
   try {
     const id = req.params.id;
     if (!/^draft-[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'bad id' });
-    let index = await readDraftsIndex();
-    index = index.filter(d => d.id !== id);
-    await writeDraftsIndex(index);
+    await mutateDraftsIndex(async index => {
+      const position = index.findIndex(d => d.id === id);
+      if (position === -1) {
+        const error = new Error('Draft not found');
+        error.status = 404;
+        throw error;
+      }
+      index.splice(position, 1);
+    });
     try { await fs.unlink(draftPath(id)); } catch {}
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
@@ -1336,7 +1448,10 @@ app.post('/api/prompt-groups', async (req, res) => {
       finalTitle = `迭代组${next}`;
     }
 
-    const rCount = Math.max(1, Math.min(req.body.rCount || 6, 20));
+    // Automation workflows can intentionally collect an initial answer plus
+    // 100 Redo variants. Keep the Prompt Lab projection lossless instead of
+    // silently truncating an imported run at the old interactive limit of 20.
+    const rCount = Math.max(1, Math.min(req.body.rCount || 6, 101));
     const entry = { id, title: finalTitle, rCount, createdAt: now, updatedAt: now };
     const dir = pgDir(id);
     await ensureDir(dir);
@@ -1441,7 +1556,7 @@ app.post('/api/prompt-groups/:id/add-slot', async (req, res) => {
     const meta = index.find(d => d.id === id);
     if (!meta) return res.status(404).json({ error: 'Group not found' });
     const cur = meta.rCount || 6;
-    if (cur >= 20) return res.status(400).json({ error: 'max 20 slots' });
+    if (cur >= 101) return res.status(400).json({ error: 'max 101 slots' });
     const next = cur + 1;
     await fs.writeFile(path.join(pgDir(id), `r${next}.md`), '', 'utf-8');
     meta.rCount = next;
@@ -1868,6 +1983,15 @@ app.post('/api/shutdown', (req, res) => {
 });
 
 const PORT = parseInt(process.env.NOVELWEB_API_PORT || '3001', 10);
+const AUTOMATION_DIR = process.env.NOVELWEB_AUTOMATION_DIR
+  ? path.resolve(process.env.NOVELWEB_AUTOMATION_DIR)
+  : path.join(DATA_DIR, 'drafts', 'ai-runs');
+
+await registerAutomationRoutes(app, {
+  rootDir: AUTOMATION_DIR,
+  apiPort: PORT,
+});
+
 app.listen(PORT, () => {
   console.log(`NovelWeb API running on http://localhost:${PORT}`);
 });

@@ -40,20 +40,24 @@
 
 ### 快速开始
 
-最简单：双击 `start.bat`（Windows）或 `bash start.sh`（macOS / Linux）。脚本会自动检查 Node.js（>= 18），缺失会通过 winget / Homebrew / apt 等自动装；装好依赖后启动 dev 服务并打开浏览器。
+最简单：双击 `start.bat`（Windows）或 `bash start.sh`（macOS / Linux）。脚本会自动检查 Node.js（20.19+ 或 22.12+，不支持 21.x），缺失会通过 winget / Homebrew / apt 等自动装。Windows 入口会同时启动 dev 服务和隔离的 Gemini Runner Chrome；macOS / Linux 入口会启动 dev 服务并打开浏览器。
 
 手动方式：
 ```bash
 git clone https://github.com/okdsf/AINovel.git
 cd AINovel
-npm install
-npm run fonts          # 下载阅读字体到 public/fonts/（多镜像自动选最快）
+npm ci                 # 按 package-lock.json 安装依赖
+npm run fonts          # 可选：下载阅读字体；不下载时使用系统字体
 npm run dev            # 同时启动前端 + 后端
 ```
 
 打开 http://localhost:5173 创建第一本书。
 
+换目录或换 Windows 电脑时，将同一仓库 clone 到任意可写目录，运行 `start.bat` 即可。启动不依赖相邻的 `AINovel` 文件夹，也不需要复制 `.env`、旧的 `node_modules` 或扩展配对文件。第一次安装依赖和专用 Chrome 需要联网；阅读字体下载不会阻塞启动。Gemini 登录保存在本机专用 Chrome profile 中，新环境需要在启动器打开的窗口登录同一个 Gemini 账号；日常浏览器里已登录不代表专用窗口已登录。配对令牌会在本机重新生成，具体步骤见 [GEMINI-AUTOMATION.md](GEMINI-AUTOMATION.md)。
+
 也可以先看看自带的演示故事：进 archive → 找到「白宫玫瑰园鱼人事件」→ 翻两篇报道（CNN 实况 + Fox News 评论）。详见 [DEMO.md](DEMO.md)。
+
+需要把一组写作提示交给 Gemini 网页逐轮执行，或对指定的已有对话连续点击 `Redo / 重新生成` 并逐版留底时，可使用内置的持久队列和本地浏览器扩展。新任务创建后处于草稿状态，点击“开始”后执行。扩展不读取登录 Cookie，并会在验证码、额度或模式不匹配时暂停。安装与恢复说明见 [GEMINI-AUTOMATION.md](GEMINI-AUTOMATION.md)。
 
 ### 项目结构
 
@@ -67,7 +71,7 @@ src/                  # Vue 前端
 server/
 └── index.js          # Express 数据 API
 
-data/                 # 内容（除示例外全部 .gitignored）
+data/                 # 小说内容（私有 NovelWeb 备份；公开 AINovel 仅含示例）
 └── archive/
     ├── taxonomy.json # outlet / reliability / category 定义
     ├── events/_example.json
@@ -83,12 +87,16 @@ scripts/
 
 ### 引擎 / 内容分仓哲学
 
+私有 **NovelWeb** 仓库用于完整备份：小说、草稿、Prompt 迭代和已保存的 Gemini 运行结果随代码一起提交到私有远端。恢复时 clone 私有仓库即可取回这些已提交文件。`.env`、Git 凭据、本机配对令牌、执行器注册信息、活动队列和浏览器登录状态不入仓；新环境重新登录、重新配对后再开始任务。
+
+私有仓库的具体恢复命令和独立目录实测结果见 [备份验证记录](BACKUP-VERIFICATION.md)。
+
 公有仓里**没有任何小说内容**——只有引擎和演示骨架。这是设计选择：
 - 写小说是私人活动，发表前不应该被 git push 意外曝光
 - 引擎可以开源迭代，作者保留对内容的完全控制
 - clone 之后是空架子（+一个演示故事），从零写自己的故事
 
-如果你写到一半想备份内容到 GitHub，建议**另开一个 private repo** 专放 `data/` 内容，本地用 symlink/junction 接进引擎目录。
+如果使用公开的 AINovel 创建自己的小说，建议另建私有仓库备份内容。`npm run publish` 是导出到公开 AINovel 的独立操作；同步私有 NovelWeb 使用正常的 Git commit / push。
 
 ### 字体说明
 
@@ -140,20 +148,24 @@ Real-world media is inherently diverse — for any given event, different outlet
 
 ### Quick start
 
-Easiest: double-click `start.bat` on Windows, or run `bash start.sh` on macOS / Linux. The script auto-checks Node.js (>= 18), auto-installs it via winget / Homebrew / apt if missing, installs dependencies, then launches the dev server.
+Easiest: double-click `start.bat` on Windows, or run `bash start.sh` on macOS / Linux. The script auto-checks Node.js (20.19+ or 22.12+; Node 21.x is unsupported), auto-installs it via winget / Homebrew / apt if missing, and installs dependencies. On Windows it starts both the dev services and the isolated Gemini Runner Chrome; on macOS / Linux it starts the dev server and opens a browser.
 
 Manual:
 ```bash
 git clone https://github.com/okdsf/AINovel.git
 cd AINovel
-npm install
-npm run fonts          # downloads reading fonts to public/fonts/ via fastest mirror
+npm ci                 # installs the dependencies pinned in package-lock.json
+npm run fonts          # optional: downloads reading fonts; otherwise system fonts are used
 npm run dev            # starts both frontend and backend
 ```
 
 Open http://localhost:5173 and create your first book.
 
+To move to a different folder or Windows computer, clone the same repository into any writable directory and run `start.bat`. Startup does not depend on a sibling `AINovel` folder or copied `.env`, `node_modules`, or extension pairing files. Installing dependencies and the dedicated Chrome requires a network connection the first time; reading font downloads do not delay startup. Gemini login belongs to the dedicated local Chrome profile: on a new machine, sign in with the same Gemini account in the launcher’s window. Being signed in through your everyday browser does not sign in this separate window. Pairing credentials are generated locally; see [GEMINI-AUTOMATION.md](GEMINI-AUTOMATION.md).
+
 Or browse the shipped demo first: open archive → find the "Otherworldly Creature in the Presidential Garden" incident → read both fictional-outlet pieces. See [DEMO.md](DEMO.md).
+
+NovelWeb also includes a durable queue and local browser extension for sending a writing workflow through the Gemini web app, or repeatedly clicking `Redo` on a specific existing conversation, while checkpointing every result. New runs remain drafts until you click Start. A second independent extension prewarms ordinary manual Send, edited-prompt resubmission, and Redo actions without requiring NovelWeb. The runner never exports login cookies and pauses on CAPTCHA, quota, or model mismatches. See [GEMINI-AUTOMATION.md](GEMINI-AUTOMATION.md).
 
 ### Project layout
 
@@ -167,7 +179,7 @@ src/                  # Vue frontend
 server/
 └── index.js          # Express data API
 
-data/                 # content (gitignored except seed files)
+data/                 # content (backed up in private NovelWeb; demos only in public AINovel)
 └── archive/
     ├── taxonomy.json
     ├── events/_example.json
@@ -183,12 +195,14 @@ Full architecture in [CLAUDE.md](CLAUDE.md).
 
 ### Engine / content separation philosophy
 
+The private **NovelWeb** repository backs up the code together with novels, drafts, Prompt iterations, and saved Gemini run results. Clone the private repository to restore committed files. `.env`, Git credentials, local pairing tokens, worker registrations, the active queue, and browser login sessions are excluded; sign in and pair the new environment before starting tasks.
+
 The public repo contains **no novel content** — only the engine and a demo scaffold. This is deliberate:
 - Writing fiction is a private activity; it shouldn't be one git-push away from accidental exposure
 - The engine evolves openly; authors keep full control over their content
 - A fresh clone is an empty scaffold (+ one demo), ready to host your own story
 
-If mid-draft you want to back up content to GitHub, open a **separate private repo** just for `data/`, and symlink (or junction on Windows) it into your engine checkout.
+If you use public AINovel for your own novel, create a private repository for content backups. `npm run publish` separately exports the engine to public AINovel; use ordinary Git commit / push to sync private NovelWeb.
 
 ### Fonts
 

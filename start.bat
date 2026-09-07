@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 title NovelWeb
+cd /d "%~dp0" || exit /b 1
 
 REM --------------------------------------------------------------------
 REM IMPORTANT: This file is INTENTIONALLY ASCII-ONLY.
@@ -21,10 +22,10 @@ echo   Starting...
 echo ========================================
 echo.
 
-set MIN_NODE_MAJOR=18
+set NODE_REQUIREMENT=20.19+ or 22.12+
 
 REM --------------------------------------------------------------------
-REM Step 1 - Check Node.js presence + version (Vite 8 needs Node 18+)
+REM Step 1 - Check Node.js presence + the version required by Vite 8
 REM --------------------------------------------------------------------
 where node >nul 2>&1
 if errorlevel 1 (
@@ -34,10 +35,9 @@ if errorlevel 1 (
 
 for /f "tokens=*" %%i in ('node --version 2^>nul') do set NODE_VER=%%i
 set NODE_VER=%NODE_VER:v=%
-for /f "tokens=1 delims=." %%a in ("%NODE_VER%") do set NODE_MAJOR=%%a
-
-if %NODE_MAJOR% LSS %MIN_NODE_MAJOR% (
-    echo [!] Node.js %NODE_VER% is too old. Need Node %MIN_NODE_MAJOR% or newer.
+node -e "const [major, minor] = process.versions.node.split('.').map(Number); process.exit((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22 ? 0 : 1)"
+if errorlevel 1 (
+    echo [!] Node.js %NODE_VER% is unsupported. Need Node %NODE_REQUIREMENT%.
     echo.
     call :TryWingetInstall force
     exit /b !errorlevel!
@@ -96,10 +96,10 @@ REM Step 2 - Check dependencies (npm sentinel)
 REM --------------------------------------------------------------------
 if not exist node_modules\.package-lock.json (
     echo Installing dependencies...
-    call npm install
+    call npm ci
     if errorlevel 1 (
         echo.
-        echo [X] npm install failed. Check your internet connection.
+        echo [X] npm ci failed. Check your internet connection.
         pause
         exit /b 1
     )
@@ -107,46 +107,27 @@ if not exist node_modules\.package-lock.json (
 )
 
 REM --------------------------------------------------------------------
-REM Step 3 - Pick free ports so multiple instances can coexist
+REM Step 3 - Launch NovelWeb and its dedicated Gemini Runner browser
 REM --------------------------------------------------------------------
-REM Defaults; overwritten below if find-ports.mjs reports free ports.
-set NOVELWEB_WEB_PORT=5173
-set NOVELWEB_API_PORT=3001
-
-REM find-ports.mjs probes upward from the defaults and prints KEY=VALUE lines.
-REM If another NovelWeb is already running, it hands back the next free pair.
-for /f "tokens=1,2 delims==" %%a in ('node scripts\find-ports.mjs 2^>nul') do set %%a=%%b
-
-if not "%NOVELWEB_WEB_PORT%"=="5173" (
-    echo [i] Ports 5173/3001 busy -- another instance is running.
-    echo     Using free ports instead.
-)
-
-REM --------------------------------------------------------------------
-REM Step 4 - Launch (fonts auto-downloaded by scripts/ensure-fonts.mjs)
-REM --------------------------------------------------------------------
+REM The runner launcher reuses a matching NovelWeb instance or selects a free
+REM frontend/backend port pair, then starts the isolated Chrome profile and
+REM waits for the extensions' authenticated heartbeat.
 echo.
-echo Frontend: http://localhost:%NOVELWEB_WEB_PORT%
-echo Backend:  http://localhost:%NOVELWEB_API_PORT%
-
-REM Detect LAN IP for mobile access
-set LAN_IP=
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4" ^| findstr /V "127.0.0" ^| findstr /V "169.254" ^| findstr /V "192.168.64"') do (
-    if not defined LAN_IP (
-        for /f "tokens=*" %%b in ("%%a") do set LAN_IP=%%b
-    )
-)
-if defined LAN_IP (
-    echo.
-    echo Mobile:   http://%LAN_IP%:%NOVELWEB_WEB_PORT%
-)
-
-echo.
-echo Press Ctrl+C to stop.
+echo Starting NovelWeb and the dedicated Gemini Runner browser...
 echo ========================================
 
-REM Open browser after a short delay (gives the server time to start)
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:%NOVELWEB_WEB_PORT%"
+call npm run gemini
+if errorlevel 1 (
+    echo.
+    echo [X] NovelWeb or the dedicated browser failed to start.
+    echo     Review the error above for the exact cause.
+    pause
+    exit /b 1
+)
 
-call npm run dev
-pause
+echo.
+echo ========================================
+echo [OK] NovelWeb and the dedicated Gemini Runner browser are ready.
+echo     The selected Automation URL is shown above.
+echo ========================================
+exit /b 0

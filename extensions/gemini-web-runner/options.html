@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelWeb Gemini Runner 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">NOVELWEB · LOCAL RUNNER</p>
+      <h1>Gemini 网页执行器</h1>
+      <p class="lede">这里只配置本地 NovelWeb 连接。登录 Gemini 必须由你本人在 Gemini 页面完成；扩展不会读取或导出 Cookie。</p>
+    </header>
+
+    <form id="settings-form" novalidate>
+      <section class="panel">
+        <h2>本地配对</h2>
+        <label>
+          <span>NovelWeb 地址</span>
+          <input id="server-url" name="serverUrl" type="url" spellcheck="false" autocomplete="off" required>
+          <small>仅接受本机的 <code>http://127.0.0.1</code> 或 <code>http://localhost</code> 地址。</small>
+        </label>
+
+        <label>
+          <span>配对令牌</span>
+          <span class="secret-row">
+            <input id="pairing-token" name="pairingToken" type="password" spellcheck="false" autocomplete="off">
+            <button id="reveal-token" class="secondary compact" type="button">显示</button>
+          </span>
+          <small>从 NovelWeb 的自动化页面复制。令牌只保存在浏览器扩展本地存储中。</small>
+        </label>
+
+        <label>
+          <span>Worker ID</span>
+          <input id="worker-id" name="workerId" type="text" spellcheck="false" autocomplete="off" readonly required>
+          <small>由扩展自动生成并保持固定，避免未完成任务的 lease 失去归属。</small>
+        </label>
+      </section>
+
+      <section class="panel safety">
+        <h2>执行开关</h2>
+        <label class="switch-row" for="enabled">
+          <span>
+            <strong>允许领取并发送队列任务</strong>
+            <small>专用 NovelWeb 浏览器启动后默认开启；关闭它可暂停后续任务。</small>
+          </span>
+          <input id="enabled" name="enabled" type="checkbox" role="switch">
+        </label>
+        <label class="switch-row" for="prewarm-enabled">
+          <span>
+            <strong>发送前预热 Gemini 网络</strong>
+            <small>默认开启。目标会话、模式和发送控件校验通过后，扩展会在实际发送前执行一次短超时的同源 HEAD 预热；预热失败会记录但不会阻止任务。</small>
+          </span>
+          <input id="prewarm-enabled" name="prewarmEnabled" type="checkbox" role="switch" checked>
+        </label>
+        <p class="warning">扩展不会自动切换模型，不会处理验证码，也不会规避用量限制。任务要求的模式与页面当前模式不一致时，会停下并等待人工处理。</p>
+      </section>
+
+      <div class="actions">
+        <button class="primary" type="submit">保存设置</button>
+        <button id="test-connection" class="secondary" type="button">测试本地连接</button>
+      </div>
+    </form>
+
+    <section class="status-panel" aria-live="polite">
+      <div>
+        <span class="status-dot" id="status-dot"></span>
+        <strong id="status-title">尚未测试</strong>
+      </div>
+      <p id="status-detail">保存配对信息后可测试连接；测试不会领取队列任务。</p>
+      <p id="outbox-status" class="muted"></p>
+    </section>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

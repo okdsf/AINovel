@@ -3,9 +3,9 @@
 # NovelWeb startup script for macOS / Linux
 #
 # Mirrors start.bat behavior:
-#   1. Ensure Node.js >= 18 is installed (auto-install via the platform's
+#   1. Ensure Node.js 20.19+ or 22.12+ is installed (auto-install via the platform's
 #      package manager when possible; otherwise direct user to nodejs.org)
-#   2. Run `npm install` if node_modules is missing or incomplete
+#   2. Run `npm ci` if node_modules is missing or incomplete
 #   3. Launch the dev server
 #
 # Usage:
@@ -14,9 +14,9 @@
 #   ./start.sh
 # ──────────────────────────────────────────────────────────────────────
 
-MIN_NODE_MAJOR=18
+NODE_REQUIREMENT='20.19+ or 22.12+'
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 echo "========================================"
 echo "  NovelWeb"
@@ -26,11 +26,13 @@ echo ""
 
 # ── helpers ────────────────────────────────────────────────────────────
 have()    { command -v "$1" >/dev/null 2>&1; }
-node_ok() { have node && [ "$(node --version | sed 's/^v//' | cut -d. -f1)" -ge "$MIN_NODE_MAJOR" ]; }
+node_ok() {
+    have node && node -e "const [major, minor] = process.versions.node.split('.').map(Number); process.exit((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22 ? 0 : 1)"
+}
 
 manual_install_msg() {
-    echo "Please install / upgrade Node.js >= $MIN_NODE_MAJOR manually:"
-    echo "请手动安装 / 升级 Node.js >= $MIN_NODE_MAJOR："
+    echo "Please install / upgrade Node.js ($NODE_REQUIREMENT) manually:"
+    echo "请手动安装 / 升级 Node.js（$NODE_REQUIREMENT）："
     echo ""
     echo "    https://nodejs.org/"
     echo ""
@@ -58,7 +60,7 @@ install_node_macos() {
 
 install_node_linux() {
     if have apt; then
-        echo "Detected apt — using NodeSource setup for Node $MIN_NODE_MAJOR LTS."
+        echo "Detected apt — using NodeSource setup for the current Node LTS."
         echo "检测到 apt，使用 NodeSource 安装当前 LTS Node。"
         echo "(Will prompt for sudo password / 需要 sudo 密码)"
         echo ""
@@ -92,8 +94,8 @@ if node_ok; then
 else
     if have node; then
         NODE_VER=$(node --version | sed 's/^v//')
-        echo "[!] Node.js $NODE_VER is too old (need >= $MIN_NODE_MAJOR)."
-        echo "[!] Node.js $NODE_VER 版本太旧（需要 $MIN_NODE_MAJOR 或以上）。"
+        echo "[!] Node.js $NODE_VER is unsupported (need $NODE_REQUIREMENT)."
+        echo "[!] Node.js $NODE_VER 不受支持（需要 $NODE_REQUIREMENT）。"
     else
         echo "[!] Node.js not detected."
         echo "[!] 未检测到 Node.js。"
@@ -134,7 +136,7 @@ fi
 if [ ! -f node_modules/.package-lock.json ]; then
     echo ""
     echo "Installing dependencies / 正在安装依赖..."
-    npm install || { echo "[X] npm install failed. / npm install 失败"; exit 1; }
+    npm ci || { echo "[X] npm ci failed. / npm ci 失败"; exit 1; }
 fi
 
 # ── Step 3: pick free ports so multiple instances can coexist ──────────

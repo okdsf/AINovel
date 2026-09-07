@@ -69,6 +69,16 @@ const router = createRouter({
       component: () => import('../views/ChatView.vue')
     },
     {
+      path: '/automation',
+      name: 'automation',
+      component: () => import('../views/AutomationView.vue')
+    },
+    {
+      path: '/vpn-test',
+      name: 'vpn-test',
+      component: () => import('../views/VpnTestView.vue')
+    },
+    {
       path: '/git',
       name: 'git',
       component: () => import('../views/GitView.vue')

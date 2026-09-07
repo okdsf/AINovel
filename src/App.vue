@@ -38,6 +38,7 @@ function togglePopover(name) {
 function closeAll() {
   drawer.value = ''
   popover.value = ''
+  exportDialogType.value = ''
 }
 
 async function doShutdown() {
@@ -50,7 +51,7 @@ async function doShutdown() {
 // Keyboard: Cmd/Ctrl+B toggles chapter drawer; Esc closes everything
 function handleKeydown(e) {
   if (e.key === 'Escape') {
-    if (drawer.value || popover.value) {
+    if (drawer.value || popover.value || exportDialogType.value) {
       e.preventDefault()
       closeAll()
     }
@@ -79,14 +80,63 @@ async function onCreateBook() {
 // ── Export ────────────────────────────────────────────────────────────
 const exporting = ref('')
 const exportMsg = ref('')
-async function doExport(type) {
+const exportDialogType = ref('')
+const selectedExportChapters = ref([])
+const allExportChapterIds = computed(() =>
+  (store.meta?.volumes || []).flatMap(vol => vol.chapters.map(ch => ch.id))
+)
+const selectedExportCount = computed(() => selectedExportChapters.value.length)
+const allExportSelected = computed(() =>
+  allExportChapterIds.value.length > 0 && selectedExportCount.value === allExportChapterIds.value.length
+)
+const someExportSelected = computed(() =>
+  selectedExportCount.value > 0 && !allExportSelected.value
+)
+
+function openExportDialog(type) {
   if (!store.currentBookId) return
+  selectedExportChapters.value = [...allExportChapterIds.value]
+  exportDialogType.value = type
+  popover.value = ''
+  exportMsg.value = ''
+}
+
+function setAllExportChapters(checked) {
+  selectedExportChapters.value = checked ? [...allExportChapterIds.value] : []
+}
+
+function isVolumeSelected(volume) {
+  return volume.chapters.length > 0 && volume.chapters.every(ch => selectedExportChapters.value.includes(ch.id))
+}
+
+function isVolumePartiallySelected(volume) {
+  const count = volume.chapters.filter(ch => selectedExportChapters.value.includes(ch.id)).length
+  return count > 0 && count < volume.chapters.length
+}
+
+function setExportVolume(volume, checked) {
+  const ids = new Set(selectedExportChapters.value)
+  for (const chapter of volume.chapters) {
+    if (checked) ids.add(chapter.id)
+    else ids.delete(chapter.id)
+  }
+  selectedExportChapters.value = [...ids]
+}
+
+async function doExport(type) {
+  if (!store.currentBookId || selectedExportCount.value === 0) return
   exporting.value = type
   exportMsg.value = ''
   try {
-    const res  = await fetch(`/api/books/${store.currentBookId}/export/${type}`, { method: 'POST' })
+    const res = await fetch(`/api/books/${store.currentBookId}/export/${type}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chapterIds: selectedExportChapters.value }),
+    })
     const data = await res.json()
-    exportMsg.value = data.ok ? t('nav.exported') : t('nav.exportFailed')
+    if (!res.ok || !data.ok) throw new Error(data.error || t('nav.exportFailed'))
+    exportDialogType.value = ''
+    exportMsg.value = t('export.success', { count: selectedExportCount.value })
   } catch {
     exportMsg.value = t('nav.exportFailed')
   } finally {
@@ -104,6 +154,8 @@ const isSearch  = computed(() => route.name === 'search-replace')
 const isGit     = computed(() => route.name === 'git')
 const isPromptArchive = computed(() => route.name === 'prompt-archive')
 const isChat = computed(() => route.name === 'chat')
+const isAutomation = computed(() => route.name === 'automation')
+const isVpnTest = computed(() => route.name === 'vpn-test')
 const isNovelTree = computed(() => route.name === 'novel-tree')
 
 onMounted(() => {
@@ -195,6 +247,37 @@ onUnmounted(() => {
           <line x1="18" y1="15" x2="20" y2="18.5"/>
         </svg>
       </RouterLink>
+
+      <RouterLink to="/automation" class="rail-btn" :class="{ active: isAutomation }" :title="t('nav.automation')" @click="closeAll">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="7" width="16" height="13"/>
+          <path d="M9 3h6M12 3v4"/>
+          <circle cx="9" cy="13" r="1"/>
+          <circle cx="15" cy="13" r="1"/>
+          <path d="M8 17h8"/>
+        </svg>
+      </RouterLink>
+
+      <RouterLink to="/vpn-test" class="rail-btn" :class="{ active: isVpnTest }" :title="t('nav.vpnTest')" @click="closeAll">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a9 9 0 0 0-9 9"/>
+          <path d="M12 7a5 5 0 0 0-5 5"/>
+          <path d="M12 11a1 1 0 0 0-1 1"/>
+          <path d="M12 3a9 9 0 0 1 9 9"/>
+          <path d="M12 7a5 5 0 0 1 5 5"/>
+          <path d="M12 11a1 1 0 0 1 1 1"/>
+          <path d="M8 17h8M10 21h4"/>
+        </svg>
+      </RouterLink>
+
+      <a href="/notes/index.html" class="rail-btn" :title="t('nav.notes')" @click="closeAll">
+        <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          <path d="M8 7h8"/>
+          <path d="M8 11h6"/>
+        </svg>
+      </a>
 
       <span class="rail-spacer"></span>
 
@@ -315,15 +398,79 @@ onUnmounted(() => {
 
         <div class="pop-section">
           <div class="pop-label">Export</div>
-          <button class="btn btn-sm pop-block" @click="doExport('novel')" :disabled="!!exporting || !store.currentBookId">
+          <button class="btn btn-sm pop-block" @click="openExportDialog('novel')" :disabled="!!exporting || !store.currentBookId || !store.meta">
             {{ exporting === 'novel' ? t('nav.exporting') : t('nav.exportNovel') }}
           </button>
-          <button class="btn btn-sm pop-block" @click="doExport('conversation')" :disabled="!!exporting || !store.currentBookId">
-            {{ exporting === 'conv' ? t('nav.exporting') : t('nav.exportConv') }}
+          <button class="btn btn-sm pop-block" @click="openExportDialog('conversation')" :disabled="!!exporting || !store.currentBookId || !store.meta">
+            {{ exporting === 'conversation' ? t('nav.exporting') : t('nav.exportConv') }}
           </button>
           <p v-if="exportMsg" class="pop-msg">{{ exportMsg }}</p>
         </div>
       </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="exportDialogType" class="modal-overlay" @click="exportDialogType = ''">
+        <section class="modal export-modal" role="dialog" aria-modal="true" :aria-label="t('export.title')" @click.stop>
+          <header class="export-head">
+            <div>
+              <p class="export-kicker">{{ exportDialogType === 'novel' ? t('nav.exportNovel') : t('nav.exportConv') }}</p>
+              <h3>{{ t('export.title') }}</h3>
+            </div>
+            <button class="export-close" type="button" :aria-label="t('common.close')" @click="exportDialogType = ''">×</button>
+          </header>
+
+          <div class="export-summary">
+            <label class="export-check export-check-all">
+              <input
+                type="checkbox"
+                :checked="allExportSelected"
+                :indeterminate="someExportSelected"
+                @change="setAllExportChapters($event.target.checked)"
+              />
+              <span>{{ t('export.selectAll') }}</span>
+            </label>
+            <span>{{ t('export.selectedCount', { selected: selectedExportCount, total: allExportChapterIds.length }) }}</span>
+          </div>
+
+          <p class="export-hint">{{ t('export.hint') }}</p>
+
+          <div class="export-chapter-list">
+            <section v-for="(volume, volumeIndex) in store.meta?.volumes || []" :key="volume.id" class="export-volume">
+              <label class="export-check export-volume-check">
+                <input
+                  type="checkbox"
+                  :checked="isVolumeSelected(volume)"
+                  :indeterminate="isVolumePartiallySelected(volume)"
+                  @change="setExportVolume(volume, $event.target.checked)"
+                />
+                <span>{{ t('export.volume', { number: volumeIndex + 1, title: volume.title }) }}</span>
+              </label>
+              <label v-for="chapter in volume.chapters" :key="chapter.id" class="export-check export-chapter-check">
+                <input v-model="selectedExportChapters" type="checkbox" :value="chapter.id" />
+                <span>{{ chapter.title }}</span>
+              </label>
+            </section>
+          </div>
+
+          <p v-if="selectedExportCount === 0" class="export-empty">{{ t('export.selectOne') }}</p>
+          <footer class="modal-actions">
+            <button class="btn" type="button" @click="exportDialogType = ''">{{ t('common.cancel') }}</button>
+            <button
+              class="btn btn-primary"
+              type="button"
+              :disabled="!!exporting || selectedExportCount === 0"
+              @click="doExport(exportDialogType)"
+            >
+              {{ exporting ? t('export.exporting') : t('export.confirm', { count: selectedExportCount }) }}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <p v-if="exportMsg && !popover" class="export-toast">{{ exportMsg }}</p>
     </Transition>
 
     <!-- ── Main content ─────────────────────────────────────────── -->
@@ -553,6 +700,119 @@ onUnmounted(() => {
   color: var(--hot);
   text-align: center;
   margin-top: 8px;
+}
+
+/* ── Export chapter picker ───────────────────────────────────────── */
+.export-modal {
+  width: min(620px, calc(100vw - 40px));
+  max-height: min(760px, calc(100vh - 40px));
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.export-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.export-head h3 {
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  font-size: 20px;
+}
+.export-kicker {
+  margin: 0;
+  color: var(--hot);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.export-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.export-close:hover { color: var(--text); }
+.export-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.export-hint {
+  margin: 8px 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.export-chapter-list {
+  flex: 1 1 360px;
+  min-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+}
+.export-volume + .export-volume { border-top: 1px solid var(--rule); }
+.export-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.export-check input {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  accent-color: var(--hot);
+}
+.export-check-all { color: var(--text); font-weight: 600; }
+.export-volume-check {
+  padding: 10px 14px;
+  background: var(--bg-sidebar);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.export-chapter-check {
+  padding: 8px 14px 8px 38px;
+  color: var(--text-soft);
+  border-top: 1px solid color-mix(in srgb, var(--rule) 35%, transparent);
+}
+.export-chapter-check:hover { color: var(--text); }
+.export-empty {
+  margin: 10px 0 0;
+  color: var(--hot);
+  font-size: 12px;
+}
+.export-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 120;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 9px 14px;
+  border: 1px solid var(--rule);
+  background: var(--bg-card);
+  color: var(--hot);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .export-modal { padding: 20px; }
+  .export-summary { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .export-chapter-check { padding-left: 24px; }
 }
 
 /* ── Main content ───────────────────────────────────────────────── */

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelWeb Gemini Runner</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">NOVELWEB</p>
+    <h1>Gemini Runner</h1>
+
+    <label class="switch-row" for="enabled">
+      <span>
+        <strong id="switch-title">执行器关闭</strong>
+        <small>手动开启后才会领取任务</small>
+      </span>
+      <input id="enabled" type="checkbox" role="switch">
+    </label>
+
+    <section class="status" aria-live="polite">
+      <div><span id="status-dot" class="dot"></span><strong id="status-title">读取状态…</strong></div>
+      <p id="status-detail"></p>
+      <dl>
+        <div><dt>模式</dt><dd id="model-label">—</dd></div>
+        <div><dt>待回传</dt><dd id="outbox-count">0</dd></div>
+        <div><dt>可恢复</dt><dd id="recovery-count">0</dd></div>
+      </dl>
+    </section>
+
+    <div class="actions">
+      <button id="open-gemini" class="primary" type="button">打开 Gemini</button>
+      <button id="open-options" type="button">配对设置</button>
+    </div>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

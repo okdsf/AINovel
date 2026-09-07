@@ -2,8 +2,7 @@
 /* All fonts are served from public/fonts/, populated by `npm run fonts`. */
 /* If files are missing, browsers silently fall back through the font chain. */
 
-/* 霞鹜文楷 Screen — Unicode-range 分包 CSS，按字符子集按需加载 */
-@import url('/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css');
+/* The optional Wenkai subset stylesheet is loaded at runtime in main.js. */
 
 /* 得意黑 Smiley Sans */
 @font-face {

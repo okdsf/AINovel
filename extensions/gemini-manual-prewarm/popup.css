@@ -1,0 +1,108 @@
+:root {
+  color-scheme: light;
+  font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  color: #211d16;
+  background: #f4efe4;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+}
+
+main {
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #b9ad98;
+}
+
+h1 {
+  margin: 0;
+  font: 600 16px/1.4 inherit;
+}
+
+header p,
+.privacy {
+  margin: 3px 0 0;
+  color: #6d6456;
+  font-size: 11px;
+}
+
+section {
+  padding: 8px 0;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 12px;
+}
+
+.row span {
+  color: #6d6456;
+}
+
+.row strong {
+  max-width: 190px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.privacy {
+  padding-top: 10px;
+  border-top: 1px solid #b9ad98;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch span {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  border: 1px solid #8c8374;
+  background: #b5aea3;
+}
+
+.switch span::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background: #fffdf8;
+  transition: transform 120ms ease;
+}
+
+.switch input:checked + span {
+  background: #226b3a;
+  border-color: #164d29;
+}
+
+.switch input:checked + span::after {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + span {
+  outline: 2px solid #5b79b7;
+  outline-offset: 2px;
+}
