@@ -9,6 +9,7 @@ import { useSettingsStore } from '../stores/settings'
 import { draftCreatedDateKey } from '../utils/dateKey'
 import { useTextHistory } from '../composables/useTextHistory'
 import { useRoute } from 'vue-router'
+import { countWords } from '../utils/wordCount.js'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -421,7 +422,7 @@ function exitCompare() {
 }
 
 const wordCount = computed(() => {
-  return (content.value || '').replace(/\s/g, '').length
+  return countWords(content.value)
 })
 
 function fmtTime(iso) {
@@ -617,7 +618,7 @@ onBeforeUnmount(() => {
             :style="editorStyle"
           ></textarea>
           <div class="d-compare-footer">
-            <span class="d-meta">{{ t('drafts.wordCount', { count: ((side === 'A' ? compareContentA : compareContentB) || '').replace(/\s/g, '').length.toLocaleString() }) }}</span>
+            <span class="d-meta">{{ t('drafts.wordCount', { count: countWords(side === 'A' ? compareContentA : compareContentB).toLocaleString() }) }}</span>
             <span v-if="side === 'A' ? compareDirtyA : compareDirtyB" class="d-meta d-meta-accent">{{ t('plab.unsaved') }}</span>
           </div>
         </div>

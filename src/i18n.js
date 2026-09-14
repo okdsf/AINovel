@@ -766,7 +766,7 @@ const en = {
   // ── Stats ──────────────────────────────────────────────────────────────
   'stats.loading': 'Loading...',
   'stats.totalWords': 'Total words',
-  'stats.charsSuffix': ' chars',
+  'stats.charsSuffix': ' words',
 
   // ── Search & replace (extra) ───────────────────────────────────────────
   'sr.searchLabel': 'Find',
@@ -892,7 +892,7 @@ const en = {
   'plab.maxSlots': 'Max 101 response slots',
   'plab.minSlots': 'Need at least 1 response slot',
   'plab.responses': 'Responses',
-  'plab.chars': 'chars',
+  'plab.chars': 'words',
   'plab.readMode': 'Read',
 
   // ── Reader view ─────────────────────────────────────────────────────────
@@ -905,7 +905,7 @@ const en = {
   'reader.next': 'Next →',
   'reader.immersive': 'Immersive read',
   'reader.exitImmersive': 'Exit immersive',
-  'reader.wordCount': '{count} chars',
+  'reader.wordCount': '{count} words',
   'reader.tabBody': 'Body',
   'reader.tabConv': 'Conversation',
   'reader.tabEntry': 'Edit',
@@ -977,7 +977,7 @@ const en = {
   'stats.byVolume': 'By volume',
   'stats.total': 'Total',
   'stats.chapter': 'Chapter',
-  'stats.words': 'Chars',
+  'stats.words': 'Words',
   'stats.volume': 'Volume',
   'stats.empty': 'This book has no content yet',
   'stats.refresh': 'Recalculate',
@@ -1025,7 +1025,7 @@ const en = {
   'drafts.draftCreateFailed': 'Create failed: {error}',
   'drafts.titlePlaceholder': 'Draft title',
   'drafts.bodyPlaceholder': 'Paste your polished version here…',
-  'drafts.wordCount': '{count} chars',
+  'drafts.wordCount': '{count} words',
   'drafts.pendingAutosave': '● Pending autosave',
   'drafts.autosaving': '● Autosaving…',
   'drafts.autosaved': '✓ Autosaved {time}',
@@ -1168,7 +1168,7 @@ const en = {
   'pa.tags': 'Tags',
   'pa.tagPh': 'Type a tag, press Enter',
   'pa.contentPh': 'Paste or write the prompt content here…',
-  'pa.wordCount': '{count} chars',
+  'pa.wordCount': '{count} words',
   'pa.unsaved': '● Unsaved',
   'pa.saved': 'Saved',
   'pa.saveFailed': 'Save failed: {error}',

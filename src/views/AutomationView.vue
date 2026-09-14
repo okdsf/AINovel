@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAutomationStore } from '../stores/automation'
+import { countWords } from '../utils/wordCount.js'
 
 const automation = useAutomationStore()
 
@@ -1285,7 +1286,7 @@ onBeforeUnmount(() => {
               <li v-for="(result, index) in projectionResults" :key="result.id || result.taskId || `${index}-${resultSha(result)}`">
                 <header>
                   <strong>{{ resultLabel(result, index) }}</strong>
-                  <span>{{ resultText(result).length.toLocaleString() }} 字符</span>
+                  <span>{{ countWords(resultText(result)).toLocaleString() }} 字</span>
                 </header>
                 <div class="sha-row">
                   <span>SHA-256</span>
