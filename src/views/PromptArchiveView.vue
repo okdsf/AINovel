@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from '../i18n'
 import { useSettingsStore } from '../stores/settings'
-import { countWords } from '../utils/wordCount.js'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -43,7 +42,7 @@ const filteredPrompts = computed(() => {
   )
 })
 
-const wordCount = computed(() => countWords(content.value))
+const wordCount = computed(() => (content.value || '').replace(/\s/g, '').length)
 
 const currentPrompt = computed(() => prompts.value.find(p => p.id === currentId.value))
 

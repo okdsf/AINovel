@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { registerAutomationRoutes } from './automation-routes.js';
-import { countWords } from '../src/utils/wordCount.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -607,7 +606,9 @@ app.get('/api/books/:bookId/stats', async (req, res) => {
       for (const ch of vol.chapters) {
         let content = '';
         try { content = await fs.readFile(path.join(CHDIR, `${ch.id}.md`), 'utf-8'); } catch {}
-        const count = countWords(content);
+        const chineseChars = (content.match(/[\u4e00-\u9fff]/g) || []).length;
+        const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
+        const count = chineseChars + englishWords;
         volStat.chapters.push({ id: ch.id, title: ch.title, wordCount: count });
         volStat.wordCount += count;
       }
