@@ -3,6 +3,7 @@ export async function connectCdp(webSocketUrl, {timeoutMs = 5000, WebSocketImpl 
   if (!WebSocketImpl) throw new Error('当前 Node.js 没有 WebSocket；请使用 --experimental-websocket 或更新 Node.js。');
   const socket = new WebSocketImpl(webSocketUrl);
   const pending = new Map();
+  const listeners = new Set();
   let sequence = 0;
   const rejectPending = message => {
     for (const item of pending.values()) {
@@ -14,6 +15,7 @@ export async function connectCdp(webSocketUrl, {timeoutMs = 5000, WebSocketImpl 
   socket.addEventListener('message', event => {
     let response;
     try { response = JSON.parse(event.data); } catch { return; }
+    if (response.method) for (const listener of listeners) listener(response);
     const item = pending.get(response.id);
     if (!item) return;
     pending.delete(response.id);
@@ -33,6 +35,7 @@ export async function connectCdp(webSocketUrl, {timeoutMs = 5000, WebSocketImpl 
     socket.addEventListener('close', () => { clearTimeout(timer); reject(new Error('Runner CDP 在连接完成前关闭。')); }, {once: true});
   });
   return {
+    onEvent(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     call(method, params = {}, {sessionId, timeoutMs: callTimeout = timeoutMs} = {}) {
       const id = ++sequence;
       return new Promise((resolve, reject) => {

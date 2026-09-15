@@ -7,6 +7,14 @@ import {connectBrowser, evaluate} from './reading-cdp.mjs';
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const buildMismatch = message => Object.assign(new Error(message), {code: 'READING_BUILD_MISMATCH'});
 const targetGone = error => /No target with given id|No target with given targetId|Target closed|Session closed|Session with given id not found/.test(error.message);
+// The 1.2 manager reports its last API request error as health.error. A restored
+// manager page can retain a closed or navigated source tab without affecting
+// extension initialization. Keep this compatibility exception exact: storage,
+// defaults, source verification, and other background failures remain fatal.
+const staleManagerContextErrors = new Set([
+  '来源标签页已经关闭，请从网页重新打开样式管理器。',
+  '来源标签页已经切换网站，请从当前网页重新打开样式管理器。',
+]);
 
 export async function readExpectedRuntime(runtime) {
   if (!runtime) throw new Error('缺少 --runtime 扩展安装目录。');
@@ -29,7 +37,9 @@ export function assertHealth(health, expected) {
   if (health.loadedBuild?.backgroundHash !== expected.sourceHash || health.loadedBuild?.workerHash !== expected.sourceHash) {
     throw buildMismatch('Runner 尚未同时加载当前阅读后台与服务工作线程；磁盘版本信息不能证明实际代码已更新。');
   }
-  if (health.error) throw new Error('阅读样式后台初始化失败：' + health.error);
+  if (health.error && !staleManagerContextErrors.has(health.error)) {
+    throw new Error('阅读样式后台初始化失败：' + health.error);
+  }
   if (health.defaults?.status !== 'complete') {
     throw new Error('默认阅读样式尚未完成初始化：' + (health.defaults?.error || health.defaults?.status || '状态未知'));
   }

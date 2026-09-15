@@ -892,9 +892,7 @@ try {
   }
 
   if ($runnerIsOpen) {
-    if (-not $alreadyPaired) {
-      throw 'The dedicated NovelWeb Runner is open but needs a safe refresh. Close that window once, then run npm run gemini again.'
-    }
+    $verificationStartedAt = [DateTime]::UtcNow.AddSeconds(-2)
     if (-not (Test-Path -LiteralPath (Join-Path $stagedExtension 'manifest.json') -PathType Leaf)) {
       throw 'The running Gemini Runner extension directory is missing. Close its browser window, then run this command again.'
     }
@@ -902,10 +900,28 @@ try {
       throw 'The running Gemini manual prewarm extension directory is missing. Close its browser window, then run this command again.'
     }
     $chromePath = Assert-PathWithin -BasePath $runtimeRoot -CandidatePath $runnerProcesses[0].ExecutablePath
-    Assert-RunnerBackgroundLoaded -SourceExtension $sourceExtension -WorkerId ([string]$marker.workerId) -BootstrapId ([string]$marker.bootstrapId) -TimeoutSeconds $StartupTimeoutSeconds
+    if ((Get-DirectorySha256Hex -RootPath $stagedExtension -ExcludedNames @('bootstrap.local.json')) -ne $runnerExtensionHash -or
+        (Get-DirectorySha256Hex -RootPath $stagedManualPrewarmExtension) -ne $manualPrewarmExtensionHash) {
+      throw 'The open Runner has an older extension installation. Close its dedicated windows before updating; current pages were preserved.'
+    }
+    # A previous launch may pair successfully and fail a later startup check.
+    # Recover its authenticated live identity instead of replaying bootstrap or
+    # requiring a restart solely because paired.json was not committed.
+    $livePairingOutput = @(& $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-runner-session.mjs') `
+      $chromeProfile $sourceExtension $stagedExtension $sourceManualPrewarmExtension $stagedManualPrewarmExtension `
+      $serverBaseUrl $tokenHash ([string]$StartupTimeoutSeconds))
+    if ($LASTEXITCODE -ne 0) { throw 'The open Runner could not be verified; its pages and pairing were preserved.' }
+    $livePairing = ($livePairingOutput -join [Environment]::NewLine) | ConvertFrom-Json
+    if ([string]$livePairing.workerId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$' -or
+        [string]$livePairing.bootstrapId -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{15,95}$') {
+      throw 'Runner verification did not return a valid paired identity.'
+    }
+    $markerNeedsRefresh = -not $alreadyPaired -or
+      [string]$marker.workerId -ne [string]$livePairing.workerId -or
+      [string]$marker.bootstrapId -ne [string]$livePairing.bootstrapId
+    $marker = $livePairing
     & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-reading-style.mjs') --runtime $stagedReadingExtension --timeout $StartupTimeoutSeconds
     if ($LASTEXITCODE -ne 0) { throw 'Loaded reading styles failed verification; startup stopped.' }
-    $verificationStartedAt = [DateTime]::UtcNow.AddSeconds(-2)
   } else {
     Install-StagedExtension -SourcePath $sourceExtension -DestinationPath $stagedExtension -LocalRoot $localRoot
     Install-StagedExtension -SourcePath $sourceManualPrewarmExtension -DestinationPath $stagedManualPrewarmExtension -LocalRoot $localRoot
@@ -1020,16 +1036,10 @@ try {
     $openArguments += ConvertTo-ChromeArgument -Name '' -Value $url
   }
   if ($urlsToOpen.Count -gt 0) {
-    Start-Process -FilePath $chromePath -ArgumentList $openArguments -WindowStyle Hidden | Out-Null
+    Start-Process -FilePath $chromePath -ArgumentList $openArguments -WindowStyle Normal | Out-Null
   }
 
   $ready = $false
-  if ($runnerIsOpen) {
-    try {
-      $status = Invoke-RestMethod -Uri $apiStatusUrl -TimeoutSec 2
-      $ready = [string]$status.worker.id -eq [string]$marker.workerId -and $status.worker.connected -eq $true
-    } catch {}
-  }
   if (-not $ready) {
     $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
@@ -1045,8 +1055,21 @@ try {
     }
   }
   if (-not $ready) {
-    if (Test-Path -LiteralPath $pairingMarkerPath -PathType Leaf) { Remove-Item -LiteralPath $pairingMarkerPath -Force }
     throw 'The installed Gemini Runner did not provide a fresh authenticated heartbeat. Close its dedicated browser window and run npm run gemini again.'
+  }
+
+  if ($runnerIsOpen -and $markerNeedsRefresh) {
+    $markerJson = [ordered]@{
+      schemaVersion = 2
+      serverUrl = $serverBaseUrl
+      tokenSha256 = $tokenHash
+      extensionSha256 = $extensionHash
+      bootstrapId = [string]$marker.bootstrapId
+      workerId = [string]$marker.workerId
+      pairedAt = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json -Compress
+    Write-Utf8TextAtomic -Path $pairingMarkerPath -Content $markerJson
+    Write-Host 'Recovered the existing Runner pairing record after verifying its loaded code and fresh heartbeat.'
   }
 
   Write-Host 'NovelWeb Gemini Runner and manual prewarm extension are ready.'

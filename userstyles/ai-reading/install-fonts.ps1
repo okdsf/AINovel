@@ -6,6 +6,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+function Get-ReadingFontSha256 {
+  param([string]$Path)
+  $stream = [IO.File]::OpenRead($Path)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
 if (-not $env:LOCALAPPDATA) { throw 'LOCALAPPDATA is required for current-user font installation.' }
 $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fonts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $sourceRoot = [IO.Path]::GetFullPath($FontDirectory).TrimEnd('\', '/')
@@ -61,7 +72,7 @@ $plan = @(foreach ($font in $manifest.fonts) {
     throw "Font source is outside the download directory: $source"
   }
   if (-not (Test-Path -LiteralPath $source -PathType Leaf) -or
-      (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $font.sha256) {
+      (Get-ReadingFontSha256 -Path $source) -ne $font.sha256) {
     throw "Font missing or checksum mismatch: $($font.filename). Run the font bootstrap again."
   }
   if ([IO.Path]::GetExtension($source) -notin @('.ttf', '.otf')) { throw "Unsupported font file: $source" }
@@ -79,7 +90,7 @@ $plan = @(foreach ($font in $manifest.fonts) {
       @((Join-Path ([Environment]::GetFolderPath('Fonts')) $expanded), (Join-Path $installRoot $expanded))
     }
     $registeredFiles = @($candidates | Select-Object -Unique | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
-    $differentFiles = @($registeredFiles | Where-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash -ne $font.sha256 })
+    $differentFiles = @($registeredFiles | Where-Object { (Get-ReadingFontSha256 -Path $_) -ne $font.sha256 })
     if (-not $registeredFiles.Count -or $differentFiles.Count) {
       throw "A font named '$registryName' is already registered at '$existing', but its file is missing or has a different SHA-256. It was not changed."
     }
@@ -90,7 +101,7 @@ $plan = @(foreach ($font in $manifest.fonts) {
     $reusedExisting = $true
   }
   $hasFile = Test-Path -LiteralPath $destination -PathType Leaf
-  if ($hasFile -and (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $font.sha256) {
+  if ($hasFile -and (Get-ReadingFontSha256 -Path $destination) -ne $font.sha256) {
     throw "A different font already occupies $destination. It was not overwritten."
   }
   $visible = @($font.familyAliases | Where-Object { $visibleFamilies -contains $_ }).Count -gt 0

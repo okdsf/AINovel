@@ -175,6 +175,50 @@ test('startup reports extension message errors and closes its own target', async
   assertOwnCleanup(mock);
 });
 
+const staleManagerContextErrors = [
+  '来源标签页已经关闭，请从网页重新打开样式管理器。',
+  '来源标签页已经切换网站，请从当前网页重新打开样式管理器。',
+];
+
+for (const [index, error] of staleManagerContextErrors.entries()) {
+  test(`healthy startup tolerates restored manager context error ${index + 1} without reloading or changing user pages`, async () => {
+    const data = {...healthy(), error};
+    const mock = transport({results: [{status: 'complete', data}]});
+    const health = await mock.run();
+    assert.equal(health.sourceHash, expected.sourceHash);
+    assert.equal(health.defaults.status, 'complete');
+    assert.equal(health.error, error, 'The page error is preserved for its owner; startup does not clear it');
+    assert.equal(reloadCalls(mock).length, 0);
+    assertOwnCleanup(mock);
+  });
+}
+
+test('legacy manager context errors never hide incomplete seed or an old executable build', () => {
+  for (const error of staleManagerContextErrors) {
+    assert.throws(() => assertHealth({...healthy(), error, defaults: {status: 'pending'}}, expected), /尚未完成初始化/);
+    assert.throws(() => assertHealth({...healthy(), error, defaults: {status: 'error', error: 'Actual seed storage failure'}}, expected), /Actual seed storage failure/);
+    assert.throws(() => assertHealth({...healthy(), error, sourceHash: 'stale'}, expected), /源码与安装目录不一致/);
+    assert.throws(() => assertHealth({...healthy(), error, loadedBuild: undefined}, expected), /磁盘版本信息不能证明/);
+  }
+});
+
+test('only the two precise legacy context messages are nonfatal; initialization and similar errors still fail', () => {
+  for (const error of [
+    'Actual startup normalize failure',
+    '阅读样式管理器的已保存数据格式不兼容，未修改现有样式。',
+    '默认阅读样式读取失败（404）。',
+    staleManagerContextErrors[0] + ' Additional storage failure',
+    '来源标签页 ID 无效。',
+  ]) assert.throws(() => assertHealth({...healthy(), error}, expected), /后台初始化失败/);
+});
+
+test('a failed health API call is fatal even when it contains a source-tab context message', async () => {
+  const mock = transport({results: [{status: 'error', error: staleManagerContextErrors[0]}]});
+  await assert.rejects(mock.run(), /检查页无法读取后台/);
+  assert.equal(reloadCalls(mock).length, 0);
+  assertOwnCleanup(mock);
+});
+
 test('startup cleans up after attach fails without masking the original failure', async () => {
   const mock = transport({failAt: 'Target.attachToTarget', failCleanup: true});
   await assert.rejects(mock.run(), /Target.attachToTarget failure/);
