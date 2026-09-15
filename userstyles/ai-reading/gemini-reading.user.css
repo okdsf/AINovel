@@ -1,0 +1,208 @@
+/* ==UserStyle==
+@name         Gemini · 中文阅读
+@namespace    novelweb-ai-reading
+@version      1.2.1
+@description  本机字体、字号、行距和阅读宽度；保留公式与图标
+@license      MIT
+@preprocessor default
+
+@var select nr-font "中文 / 正文字体" {
+  "serif:思源宋体 · Noto Serif SC": "'Noto Serif SC', 'Source Han Serif SC', 'Microsoft YaHei', serif",
+  "sans:思源黑体 · Noto Sans SC": "'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif",
+  "yahei:微软雅黑": "'Microsoft YaHei', sans-serif",
+  "kaiti:楷体": "'KaiTi', 'Noto Serif SC', serif",
+  "lxgw_wenkai:手写楷体 · 霞鹜文楷*": "'LXGW WenKai', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "mashanzheng:毛笔楷书 · 马善政毛笔楷体": "'Ma Shan Zheng', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "longcang:随性手写 · 龙藏体": "'Long Cang', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "zhimangxing:毛笔行书 · 志莽行书": "'Zhi Mang Xing', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "liujianmaocao:个性草书 · 刘建毛草": "'Liu Jian Mao Cao', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "zcoolkuaile:可爱圆趣 · 站酷快乐体": "'ZCOOL KuaiLe', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "zcoolqingkehuangyou:可爱方圆 · 站酷庆科黄油体": "'ZCOOL QingKe HuangYou', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "zcoolxiaowei:装饰宋体 · 站酷小薇体": "'ZCOOL XiaoWei', 'Noto Serif SC', 'Microsoft YaHei', serif",
+  "custom:自定义字体": "var(--nr-custom-font)"
+}
+@var text nr-custom-font "自定义字体（上方选择自定义后生效）" "'Noto Serif SC', serif"
+@var select nr-latin-font "英文字体（可与中文搭配）" {
+  "follow:跟随正文字体*": "var(--nr-font)",
+  "greatvibes:正式英文花体 · Great Vibes · 优雅花体": "'Great Vibes'",
+  "allura:轻盈英文花体 · Allura · 轻盈花体": "'Allura'",
+  "dancingscript:连笔手写 · Dancing Script · 灵动手写": "'Dancing Script'",
+  "pacifico:复古圆润花体 · Pacifico · 圆润复古": "'Pacifico'",
+  "caveat:自然手写 · Caveat · 随性笔记": "'Caveat'",
+  "sacramento:细线花体 · Sacramento · 细线连笔": "'Sacramento'"
+}
+@var range nr-size "正文字号" [19, 16, 26, 1, "px"]
+@var range nr-line-height "正文行距" [1.8, 1.4, 2.2, 0.05]
+@var range nr-width "阅读宽度（窄屏自动收缩）" [820, 640, 1100, 20, "px"]
+@var range nr-paragraph-gap "段落间距" [0.8, 0.4, 1.6, 0.1, "em"]
+@var select nr-code-font "代码字体" {
+  "cascadia:Cascadia Mono*": "'Cascadia Mono', Consolas, monospace",
+  "consolas:Consolas": "Consolas, monospace",
+  "system:系统等宽": "monospace"
+}
+@var range nr-code-size "代码字号" [16, 12, 22, 1, "px"]
+@var select nr-ui-font "页面界面字体" {
+  "keep:保留网页原字体*": "revert-layer",
+  "match:与正文使用同一字体": "var(--nr-latin-font), var(--nr-font)"
+}
+==/UserStyle== */
+
+@-moz-document domain("gemini.google.com") {
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: local('LXGW WenKai'), local('LXGWWenKai-Regular'), local('LXGW WenKai');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Ma Shan Zheng';
+    src: local('Ma Shan Zheng Regular'), local('MaShanZheng-Regular'), local('Ma Shan Zheng');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Long Cang';
+    src: local('Long Cang Regular'), local('LongCang-Regular'), local('Long Cang');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Zhi Mang Xing';
+    src: local('Zhi Mang Xing Regular'), local('ZhiMangXing-Regular'), local('Zhi Mang Xing');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Liu Jian Mao Cao';
+    src: local('Liu Jian Mao Cao Regular'), local('LiuJianMaoCao-Regular'), local('Liu Jian Mao Cao');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'ZCOOL KuaiLe';
+    src: local('ZCOOL KuaiLe Regular'), local('ZCOOLKuaiLe-Regular'), local('ZCOOL KuaiLe');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'ZCOOL QingKe HuangYou';
+    src: local('ZCOOL QingKe HuangYou Regular'), local('ZCOOLQingKeHuangYou-Regular'), local('ZCOOL QingKe HuangYou');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'ZCOOL XiaoWei';
+    src: local('ZCOOL XiaoWei Regular'), local('ZCOOLXiaoWei-Regular'), local('ZCOOL XiaoWei');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Great Vibes';
+    src: local('Great Vibes Regular'), local('GreatVibes-Regular'), local('Great Vibes');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Allura';
+    src: local('Allura Regular'), local('Allura-Regular'), local('Allura');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Dancing Script';
+    src: local('Dancing Script Regular'), local('DancingScript-Regular'), local('Dancing Script');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Pacifico';
+    src: local('Pacifico Regular'), local('Pacifico-Regular'), local('Pacifico');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Caveat';
+    src: local('Caveat Regular'), local('Caveat-Regular'), local('Caveat');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Sacramento';
+    src: local('Sacramento'), local('Sacramento-Regular'), local('Sacramento');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown {
+    font-family: var(--nr-latin-font), var(--nr-font) !important;
+    font-size: var(--nr-size) !important;
+    line-height: var(--nr-line-height) !important;
+    overflow-wrap: break-word;
+  }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, strong, b, em, i, a, span, table, thead, tbody, tr, th, td):not(:where(pre, pre *, code, code *, kbd, kbd *, samp, samp *, math, math *, .katex, .katex *, [data-assistant-math-rendered], [data-assistant-math-rendered] *, svg, svg *, mat-icon, mat-icon *, gem-icon, gem-icon *, [role="img"], [role="img"] *, button, button *)) {
+    font-family: var(--nr-latin-font), var(--nr-font) !important;
+  }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(p, li, blockquote, th, td):not(:where(pre, pre *, code, code *, kbd, kbd *, samp, samp *, math, math *, .katex, .katex *, [data-assistant-math-rendered], [data-assistant-math-rendered] *, svg, svg *, mat-icon, mat-icon *, gem-icon, gem-icon *, [role="img"], [role="img"] *)) {
+    font-size: var(--nr-size) !important;
+    line-height: var(--nr-line-height) !important;
+  }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(p, blockquote) {
+    margin-block: var(--nr-paragraph-gap) !important;
+  }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown > :first-child { margin-block-start: 0 !important; }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown > :last-child { margin-block-end: 0 !important; }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(h1, h2, h3, h4, h5, h6) {
+    line-height: 1.45 !important;
+    margin-block: 1.2em 0.55em !important;
+  }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown h1 { font-size: calc(var(--nr-size) * 1.5) !important; }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown h2 { font-size: calc(var(--nr-size) * 1.25) !important; }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown h3 { font-size: calc(var(--nr-size) * 1.12) !important; }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(h4, h5, h6) { font-size: var(--nr-size) !important; }
+
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown :is(code, code *, kbd, samp) {
+    font-family: var(--nr-code-font) !important;
+    font-size: var(--nr-code-size) !important;
+    letter-spacing: normal !important;
+  }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown pre {
+    max-inline-size: 100%;
+    overflow-x: auto !important;
+  }
+  #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown pre code {
+    line-height: 1.6 !important;
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  /* A separate cascade layer lets revert-layer preserve the original UI. */
+  @layer novelweb-reading-interface {
+    body :not(:where(pre, pre *, code, code *, kbd, kbd *, samp, samp *, math, math *, .katex, .katex *, [data-assistant-math-rendered], [data-assistant-math-rendered] *, svg, svg *, mat-icon, mat-icon *, gem-icon, gem-icon *, [role="img"], [role="img"] *, #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown, #chat-history [data-test-id="chat-history-container"] model-response model-response-content message-content > .markdown *)) {
+      font-family: var(--nr-ui-font, revert-layer) !important;
+    }
+  }
+
+  #chat-history [data-test-id="chat-history-container"] > .conversation-container {
+    max-width: var(--nr-width) !important;
+  }
+}

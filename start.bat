@@ -112,7 +112,10 @@ REM --------------------------------------------------------------------
 REM The runner launcher reuses a matching NovelWeb instance or selects a free
 REM frontend/backend port pair, then starts the isolated Chrome profile and
 REM waits for the extensions' authenticated heartbeat.
+REM Fonts, Stylus, and default reading styles are provisioned before Chrome.
+REM Verified caches are reused; only missing or damaged assets are downloaded.
 echo.
+echo Preparing fonts and reading styles automatically. First launch needs internet.
 echo Starting NovelWeb and the dedicated Gemini Runner browser...
 echo ========================================
 

@@ -7,6 +7,7 @@ import DraftCalendarFilter from '../components/DraftCalendarFilter.vue'
 import { useI18n } from '../i18n'
 import { useSettingsStore } from '../stores/settings'
 import { draftCreatedDateKey } from '../utils/dateKey'
+import { countWords } from '../utils/wordCount'
 import { useTextHistory } from '../composables/useTextHistory'
 import { useRoute } from 'vue-router'
 
@@ -420,9 +421,9 @@ function exitCompare() {
   compareMode.value = false
 }
 
-const wordCount = computed(() => {
-  return (content.value || '').replace(/\s/g, '').length
-})
+const wordCount = computed(() => countWords(content.value))
+const compareWordCountA = computed(() => countWords(compareContentA.value))
+const compareWordCountB = computed(() => countWords(compareContentB.value))
 
 function fmtTime(iso) {
   if (!iso) return ''
@@ -617,7 +618,7 @@ onBeforeUnmount(() => {
             :style="editorStyle"
           ></textarea>
           <div class="d-compare-footer">
-            <span class="d-meta">{{ t('drafts.wordCount', { count: ((side === 'A' ? compareContentA : compareContentB) || '').replace(/\s/g, '').length.toLocaleString() }) }}</span>
+            <span class="d-meta">{{ t('drafts.wordCount', { count: (side === 'A' ? compareWordCountA : compareWordCountB).toLocaleString() }) }}</span>
             <span v-if="side === 'A' ? compareDirtyA : compareDirtyB" class="d-meta d-meta-accent">{{ t('plab.unsaved') }}</span>
           </div>
         </div>

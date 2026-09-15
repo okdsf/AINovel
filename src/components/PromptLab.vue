@@ -6,6 +6,7 @@ import { useSettingsStore } from '../stores/settings'
 import ImmersiveReader from './ImmersiveReader.vue'
 import TextFindReplace from './TextFindReplace.vue'
 import { useTextHistory } from '../composables/useTextHistory'
+import { countWords } from '../utils/wordCount'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -122,7 +123,7 @@ function saveFullscreenSlot() {
 
 const fsWordCount = computed(() => {
   if (fullscreen.value === 'prompt') return promptWordCount.value
-  if (typeof fullscreen.value === 'number') return (responses.value[fullscreen.value] || '').replace(/\s/g, '').length
+  if (typeof fullscreen.value === 'number') return countWords(responses.value[fullscreen.value])
   return 0
 })
 
@@ -528,10 +529,10 @@ watch(promptContent, () => {
   }
 }, { flush: 'sync' })
 
-const activeWordCount = computed(() => (responses.value[activeSlot.value] || '').replace(/\s/g, '').length)
-const promptWordCount = computed(() => (promptContent.value || '').replace(/\s/g, '').length)
-const compareWordCountA = computed(() => (compareContentA.value || '').replace(/\s/g, '').length)
-const compareWordCountB = computed(() => (compareContentB.value || '').replace(/\s/g, '').length)
+const activeWordCount = computed(() => countWords(responses.value[activeSlot.value]))
+const promptWordCount = computed(() => countWords(promptContent.value))
+const compareWordCountA = computed(() => countWords(compareContentA.value))
+const compareWordCountB = computed(() => countWords(compareContentB.value))
 
 const slotList = computed(() => {
   const arr = []
@@ -543,8 +544,8 @@ function slotHasContent(slot) {
   return (responses.value[slot] || '').trim().length > 0
 }
 
-function slotCharCount(slot) {
-  return (responses.value[slot] || '').replace(/\s/g, '').length
+function slotWordCount(slot) {
+  return countWords(responses.value[slot])
 }
 
 function showMsg(text) {
@@ -732,7 +733,7 @@ watch(() => route.query.group, async (value) => {
                 <span v-if="slotHasContent(i)" class="pl-drawer-dot"></span>
                 <span v-if="responseDirty[i]" class="pl-drawer-dot dirty"></span>
                 <span class="pl-panel-item-preview">{{ (responses[i] || '').slice(0, 50).replace(/\n/g, ' ') || '—' }}</span>
-                <span class="pl-panel-item-count">{{ slotCharCount(i).toLocaleString() }}</span>
+                <span class="pl-panel-item-count">{{ slotWordCount(i).toLocaleString() }}</span>
                 <button class="pl-panel-item-del" @click.stop="deleteSlot(i)" :disabled="rCount <= 1">×</button>
               </div>
             </div>

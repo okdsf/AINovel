@@ -15,20 +15,27 @@ Google AI Ultra 是订阅档位，`Pro Extended`、`Deep Think` 等才是网页�
 
 ## 安装与配对
 
-Windows 下在仓库目录运行一条命令即可：
+Windows 下双击仓库中的 `start.bat` 即可安装依赖并启动。已经安装 Node.js 和项目依赖时，也可在仓库目录运行：
 
 ```powershell
 npm run gemini
 ```
 
-启动器会优先复用这个仓库已经运行的 NovelWeb；若默认的前端 `5173` 或后端 `3001` 被其他程序占用，它会自动选择一组空闲端口并在终端打印实际的 `NovelWeb UI`、`NovelWeb API` 和 `Automation` 地址。选中的地址会保存供下次启动复用。随后它会下载并缓存官方 Chrome for Testing、建立一个与日常浏览器隔离的 Gemini 专用 profile，并加载两个扩展：
+启动器先校验并准备 NovelWeb 的 `public/fonts` 网页字体、14 款 Gemini / ChatGPT 本机字体及 OFL 许可证，以及固定版本的官方 Stylus 2.4.13 和项目内的样式管理器。字体在 Chrome 启动前注册，避免浏览器缓存旧的字体列表。所有字体分片、字体文件和 Stylus 安装包都有固定 SHA-256；完整缓存可离线复用，缺失或损坏的文件会重新下载或从已校验的安装包修复。首次运行需要联网，准备失败会停止并报告具体原因，重跑入口会复用已完成的文件。
+
+启动器会优先复用这个仓库已经运行的 NovelWeb；若默认的前端 `5173` 或后端 `3001` 被其他程序占用，它会自动选择一组空闲端口并在终端打印实际的 `NovelWeb UI`、`NovelWeb API` 和 `Automation` 地址。选中的地址会保存供下次启动复用。随后它会下载并缓存官方 Chrome for Testing、建立一个与日常浏览器隔离的 Gemini 专用 profile，并加载三个扩展：
 
 - `NovelWeb Gemini Runner`：执行持久队列；普通提示词与 `Redo` 都会在真正点击前默认预热 Gemini 同源连接。
 - `Gemini Manual Prewarm`：只处理你亲自点击发送、按 Enter、点击精确 `Redo / 重做` 控件，以及编辑历史提示后重新提交的操作；它会先预热，再放行一次操作。它不读取、保存或上传提示词正文。
+- `Stylus 2.4.13`：加载项目内的样式管理器；首次初始化会添加 Gemini / ChatGPT 各一份独立阅读样式，默认使用已下载的霞鹜文楷。网页右下侧的 **Aa 样式管理** 可查看已安装、已启用样式并更改字体。原有主题、字体变量和启用状态保留，用户删除过的默认样式不会每次启动又被添加。
+
+启动器会通过专用 Runner 的扩展设置页启用开发者模式，使项目内的扩展可以加载和更新；设置完成后关闭自己创建的设置页。
 
 启动器随后完成本机配对，并打开自动化页面和 Gemini。配对令牌只通过一个短生命周期的本机文件交给 Runner；握手成功或失败后都会删除，不会出现在命令行、URL 或日志中。手动预热扩展不需要、也拿不到 NovelWeb 配对令牌。
 
 Chrome 137 之后的正式版不再允许脚本通过 `--load-extension` 加载本地扩展，所以一键启动器使用 Google 官方 Chrome for Testing。它只用于这个 Gemini 自动化窗口，不会替换系统 Chrome，也不会读取或复制日常浏览器 profile。
+
+专用 Chrome 冷启动时会通过自身扩展管理页开启开发者模式，并确认开关已生效，让这些解压扩展在重新加载后仍能正常运行。该步骤只创建并关闭启动器自己的检查页；如果开关受到策略限制或页面结构不兼容，会停止并报告具体控件状态。
 
 首次运行后，在专用窗口完成账号登录和模式选择：
 
@@ -36,6 +43,19 @@ Chrome 137 之后的正式版不再允许脚本通过 `--load-extension` 加载�
 2. 启动器配对成功后会启用 Runner，已点击“开始”的队列可以继续执行；可在扩展弹窗关闭执行器。新建任务先保存为草稿，检查后再点击“开始”。`Gemini Manual Prewarm` 默认启用，但只有你亲自发送或点击 Redo 时才工作，也可在它自己的弹窗中关闭。
 
 之后创建任务，检查提示词和模式锁，再点击“开始”。以后再次打开专用窗口仍运行 `npm run gemini`；登录状态保存在这个独立 profile 中。
+
+换 Windows 电脑时复制或 clone 项目，再运行 `start.bat`，无需复制旧用户名下的绝对路径或手动安装字体。字体来源、下载脚本、两份默认样式及管理器源码在仓库中；本机运行文件均按当前用户的 `%LOCALAPPDATA%` 定位：
+
+| 内容 | 位置 |
+| --- | --- |
+| Runner Chrome、运行扩展和启动状态 | `%LOCALAPPDATA%\NovelWeb\GeminiRunner` |
+| 个人登录、主题、字体变量和站点选择 | `%LOCALAPPDATA%\NovelWeb\GeminiRunner\chrome-profile` |
+| Stylus 包、运行副本、字体与许可证缓存 | `%LOCALAPPDATA%\NovelWeb\ReadingStyle` |
+| 当前用户安装的字体副本 | `%LOCALAPPDATA%\Microsoft\Windows\Fonts\NovelWeb-Reading-*` |
+
+新电脑需要重新登录 Gemini / ChatGPT；个人主题及字体参数可在旧电脑通过 Stylus 导出，再在新电脑导入。阅读组件的自动安装不复制浏览器登录信息，也不覆盖已有样式。完整操作见 [阅读字体说明](userstyles/ai-reading/README.md)。
+
+已有专用 Runner 正在运行时，启动器只读校验阅读组件与已加载代码；发现字体缺失、损坏或源码更新时，会提示完整关闭专用 Runner 窗口后重新启动。请先保存编辑内容并等待生成结束。启动器不会为安装字体或更新 Stylus 自动关闭你的页面，单独刷新网页不能替代完整重启。
 
 ## Codex 真实浏览器诊断通道
 
@@ -76,7 +96,7 @@ npm run gemini:browser -- -Action Click `
 
 然后只需在 Runner 设置页填写 NovelWeb 地址与配对令牌。手动预热扩展不需要配对。
 
-两个扩展可以同时存在。手动预热扩展只拦截浏览器标记为真实用户输入的事件；Runner 的程序化点击不会被它再次拦截，因此不会双重发送。
+Runner 与手动预热扩展可以同时存在。手动预热扩展只拦截浏览器标记为真实用户输入的事件；Runner 的程序化点击不会被它再次拦截，因此不会双重发送。
 
 执行器开启时，请把被它占用的 Gemini 标签页当作专用工作页，不要在同一页手动发送别的提示词。你仍可以在其他标签页正常使用 Gemini；扩展会用唯一标签页锁避免两个执行页同时领取任务。
 

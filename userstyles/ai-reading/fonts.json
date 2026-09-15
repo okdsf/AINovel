@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 1,
+  "downloadSubdirectory": "NovelWeb/ReadingStyle/fonts",
+  "sources": {
+    "googleFonts": {
+      "repository": "https://github.com/google/fonts",
+      "commit": "809e4d8b8d7e9364a914909bb777679606c178b8"
+    },
+    "lxgwWenKai": {
+      "repository": "https://github.com/lxgw/LxgwWenKai",
+      "release": "v1.522"
+    }
+  },
+  "fonts": [
+    {
+      "id": "lxgw-wenkai",
+      "label": "霞鹜文楷",
+      "group": "zh",
+      "style": "手写楷体",
+      "family": "LXGW WenKai",
+      "fullName": "LXGW WenKai",
+      "filename": "LXGWWenKai-Regular.ttf",
+      "sourceUrl": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/lxgw-wenkai-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.522/OFL.txt",
+      "sha256": "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009",
+      "licenseSha256": "c38b1994a5e48ac30ac7d1da7d0409fd8fd8127dfe28a13d6e787d5b1ef34a5e",
+      "sizeBytes": 25575676,
+      "postScriptName": "LXGWWenKai-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.522; March 17, 2026",
+      "coverage": {
+        "unicodeCharacters": 46490,
+        "hanCharacters": 30592,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "",
+          "rareHan": "",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "字库较广的手写楷体，适合中文长文；未覆盖的生僻字仍需后备字体。",
+      "familyAliases": [
+        "LXGW WenKai",
+        "霞鹜文楷"
+      ]
+    },
+    {
+      "id": "mashanzheng",
+      "label": "马善政毛笔楷体",
+      "group": "zh",
+      "style": "毛笔楷书",
+      "family": "Ma Shan Zheng",
+      "fullName": "Ma Shan Zheng Regular",
+      "filename": "MaShanZheng-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/mashanzheng/MaShanZheng-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/mashanzheng-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/mashanzheng/OFL.txt",
+      "sha256": "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb",
+      "licenseSha256": "d7bdb1cee215b689e23c2f95672a6084c790542170648267a55114103d756a08",
+      "sizeBytes": 5857936,
+      "postScriptName": "MaShanZheng-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.003",
+      "coverage": {
+        "unicodeCharacters": 7015,
+        "hanCharacters": 6763,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "Ma Shan Zheng"
+      ]
+    },
+    {
+      "id": "longcang",
+      "label": "龙藏体",
+      "group": "zh",
+      "style": "随性手写",
+      "family": "Long Cang",
+      "fullName": "Long Cang Regular",
+      "filename": "LongCang-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/longcang/LongCang-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/longcang-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/longcang/OFL.txt",
+      "sha256": "e5bf2c3f24ef2327c6f136d8f73e2f9dfdf44896fdbeb35a9515f44777bb91bc",
+      "licenseSha256": "603546b7219a94bb59bf8294458194a5010119486354092b66a09a3fd61aeacc",
+      "sizeBytes": 5162508,
+      "postScriptName": "LongCang-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.001",
+      "coverage": {
+        "unicodeCharacters": 7015,
+        "hanCharacters": 6763,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "Long Cang",
+        "有字库龙藏体"
+      ]
+    },
+    {
+      "id": "zhimangxing",
+      "label": "志莽行书",
+      "group": "zh",
+      "style": "毛笔行书",
+      "family": "Zhi Mang Xing",
+      "fullName": "Zhi Mang Xing Regular",
+      "filename": "ZhiMangXing-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zhimangxing/ZhiMangXing-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/zhimangxing-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zhimangxing/OFL.txt",
+      "sha256": "644e0cae9b40f0b10ab729a01bd32032e3973bac22be3dccae01bf6ae7fde969",
+      "licenseSha256": "10947328199e369a3e6b4a67e8e5507ed99d5bbb264a1f156415aa9b665e4d15",
+      "sizeBytes": 4063532,
+      "postScriptName": "ZhiMangXing-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.001",
+      "coverage": {
+        "unicodeCharacters": 7015,
+        "hanCharacters": 6763,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "Zhi Mang Xing",
+        "钟齐志莽行书"
+      ]
+    },
+    {
+      "id": "liujianmaocao",
+      "label": "刘建毛草",
+      "group": "zh",
+      "style": "个性草书",
+      "family": "Liu Jian Mao Cao",
+      "fullName": "Liu Jian Mao Cao Regular",
+      "filename": "LiuJianMaoCao-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/liujianmaocao/LiuJianMaoCao-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/liujianmaocao-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/liujianmaocao/OFL.txt",
+      "sha256": "cab396b91a5b7c0b4005a35891180d06e6751f5ac261fe680aec65c1ae209033",
+      "licenseSha256": "ff56684b0212481e7c3886c26d5a655de9b211c8119e5ccc756138a97b066acc",
+      "sizeBytes": 4951804,
+      "postScriptName": "LiuJianMaoCao-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.003",
+      "coverage": {
+        "unicodeCharacters": 7015,
+        "hanCharacters": 6763,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。 草书辨识度因人而异，适合短句或偏好草书的阅读者。",
+      "familyAliases": [
+        "Liu Jian Mao Cao",
+        "钟齐流江毛笔草体"
+      ]
+    },
+    {
+      "id": "zcoolkuaile",
+      "label": "站酷快乐体",
+      "group": "zh",
+      "style": "可爱圆趣",
+      "family": "ZCOOL KuaiLe",
+      "fullName": "ZCOOL KuaiLe Regular",
+      "filename": "ZCOOLKuaiLe-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/zcoolkuaile-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolkuaile/OFL.txt",
+      "sha256": "812a6fc1fe54b6d73a419245c32dfeba8aa33104d5be90d1cf6af082007cb71d",
+      "licenseSha256": "538078469839b4a2e7ad22bef4ebe41681a4e53749bb2a072144024f1d6d703d",
+      "sizeBytes": 1514968,
+      "postScriptName": "ZCOOLKuaiLe-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.001",
+      "coverage": {
+        "unicodeCharacters": 7053,
+        "hanCharacters": 6766,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "ZCOOL KuaiLe"
+      ]
+    },
+    {
+      "id": "zcoolqingkehuangyou",
+      "label": "站酷庆科黄油体",
+      "group": "zh",
+      "style": "可爱方圆",
+      "family": "ZCOOL QingKe HuangYou",
+      "fullName": "ZCOOL QingKe HuangYou Regular",
+      "filename": "ZCOOLQingKeHuangYou-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolqingkehuangyou/ZCOOLQingKeHuangYou-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/zcoolqingkehuangyou-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolqingkehuangyou/OFL.txt",
+      "sha256": "54f0c0df4308cd74cd0f2fd3494ae054dbc4a1fd6fa7d71f4807eb4cdd8b4136",
+      "licenseSha256": "f1bce31b817dee01c1e4ef8bc45d8ecb95f01f4abbf0a985007cb3cd0fd8123d",
+      "sizeBytes": 8328684,
+      "postScriptName": "ZCOOLQingKeHuangYou-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.000",
+      "coverage": {
+        "unicodeCharacters": 9429,
+        "hanCharacters": 9176,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "ZCOOL QingKe HuangYou",
+        "站酷庆科黄油体"
+      ]
+    },
+    {
+      "id": "zcoolxiaowei",
+      "label": "站酷小薇体",
+      "group": "zh",
+      "style": "装饰宋体",
+      "family": "ZCOOL XiaoWei",
+      "fullName": "ZCOOL XiaoWei Regular",
+      "filename": "ZCOOLXiaoWei-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolxiaowei/ZCOOLXiaoWei-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/zcoolxiaowei-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/zcoolxiaowei/OFL.txt",
+      "sha256": "a42b620140f493db42f741351dfbf343c0936d58588ee8004b8b2a218d997ff1",
+      "licenseSha256": "a094514ca57cf8f9c5e8d8d1adab5d8cd3a377297ff016f9df2c05b3ecd77f0a",
+      "sizeBytes": 6313808,
+      "postScriptName": "ZCOOLXiaoWei-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.000",
+      "coverage": {
+        "unicodeCharacters": 7016,
+        "hanCharacters": 6763,
+        "sampleMissing": {
+          "simplified": "",
+          "traditional": "閱讀體驗風過書頁這個溫",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "中文字库有限，未覆盖的字使用后备字体；建议保留思源宋体或微软雅黑。",
+      "familyAliases": [
+        "ZCOOL XiaoWei",
+        "站酷小薇体 常规",
+        "站酷小薇体"
+      ]
+    },
+    {
+      "id": "greatvibes",
+      "label": "Great Vibes · 优雅花体",
+      "group": "latin",
+      "style": "正式英文花体",
+      "family": "Great Vibes",
+      "fullName": "Great Vibes Regular",
+      "filename": "GreatVibes-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/greatvibes/GreatVibes-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/greatvibes-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/greatvibes/OFL.txt",
+      "sha256": "8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15",
+      "licenseSha256": "61093a21f5e63dedf54222b3c09997e54c0fe43e3851d21386e02ddcbc246d49",
+      "sizeBytes": 457588,
+      "postScriptName": "GreatVibes-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.103; ttfautohint (v1.8.4.7-5d5b)",
+      "coverage": {
+        "unicodeCharacters": 1081,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Great Vibes"
+      ]
+    },
+    {
+      "id": "allura",
+      "label": "Allura · 轻盈花体",
+      "group": "latin",
+      "style": "轻盈英文花体",
+      "family": "Allura",
+      "fullName": "Allura Regular",
+      "filename": "Allura-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/allura/Allura-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/allura-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/allura/OFL.txt",
+      "sha256": "9c142b2e515832c0dfc4ff8b8ea18f40314943bf937b72e2b23c4661bac14cc6",
+      "licenseSha256": "c8cb4c94a558b6cb82ac5dc981a73a0b8aee35a5c52c8a7832fc0280c289ad49",
+      "sizeBytes": 246632,
+      "postScriptName": "Allura-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.110",
+      "coverage": {
+        "unicodeCharacters": 587,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Allura"
+      ]
+    },
+    {
+      "id": "dancingscript",
+      "label": "Dancing Script · 灵动手写",
+      "group": "latin",
+      "style": "连笔手写",
+      "family": "Dancing Script",
+      "fullName": "Dancing Script Regular",
+      "filename": "DancingScript[wght].ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/dancingscript/DancingScript%5Bwght%5D.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/dancingscript-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/dancingscript/OFL.txt",
+      "sha256": "21808625578fe8d8cd10cb684be546dca077b27cd03a53a2f1ec11dc743c924c",
+      "licenseSha256": "6f090277c00af96651ce6dbcc38ff1591047a3bffef486e80b6a32e8276a8201",
+      "sizeBytes": 133636,
+      "postScriptName": "DancingScript-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.001",
+      "coverage": {
+        "unicodeCharacters": 559,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [
+        {
+          "tag": "wght",
+          "min": 400.0,
+          "default": 400.0,
+          "max": 700.0
+        }
+      ],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Dancing Script"
+      ]
+    },
+    {
+      "id": "pacifico",
+      "label": "Pacifico · 圆润复古",
+      "group": "latin",
+      "style": "复古圆润花体",
+      "family": "Pacifico",
+      "fullName": "Pacifico Regular",
+      "filename": "Pacifico-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/pacifico/Pacifico-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/pacifico-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/pacifico/OFL.txt",
+      "sha256": "5b6c0d5334a7bf77dea52b975c5a0c408878c0f7115ed5b6fb151f634b7bf701",
+      "licenseSha256": "a47e5daeda73568969395c656823102678f2eefb0d7d7ecb47aac4cc17e42204",
+      "sizeBytes": 329380,
+      "postScriptName": "Pacifico-Regular",
+      "subfamily": "Regular",
+      "version": "Version 3.001",
+      "coverage": {
+        "unicodeCharacters": 805,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Pacifico"
+      ]
+    },
+    {
+      "id": "caveat",
+      "label": "Caveat · 随性笔记",
+      "group": "latin",
+      "style": "自然手写",
+      "family": "Caveat",
+      "fullName": "Caveat Regular",
+      "filename": "Caveat[wght].ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/caveat/Caveat%5Bwght%5D.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/caveat-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/caveat/OFL.txt",
+      "sha256": "0bdb6b660482d31531b3945849fba5916b3ef8695da7024a9e6b9ee3c4157988",
+      "licenseSha256": "1f9d81d094273d82f3898a1ee8b598a717d050ecbf5ff7bede105b704880157b",
+      "sizeBytes": 403648,
+      "postScriptName": "Caveat-Regular",
+      "subfamily": "Regular",
+      "version": "Version 2.000",
+      "coverage": {
+        "unicodeCharacters": 753,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [
+        {
+          "tag": "wght",
+          "min": 400.0,
+          "default": 400.0,
+          "max": 700.0
+        }
+      ],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Caveat"
+      ]
+    },
+    {
+      "id": "sacramento",
+      "label": "Sacramento · 细线连笔",
+      "group": "latin",
+      "style": "细线花体",
+      "family": "Sacramento",
+      "fullName": "Sacramento",
+      "filename": "Sacramento-Regular.ttf",
+      "sourceUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/sacramento/Sacramento-Regular.ttf",
+      "license": "OFL-1.1",
+      "licensePath": "licenses/sacramento-OFL.txt",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/809e4d8b8d7e9364a914909bb777679606c178b8/ofl/sacramento/OFL.txt",
+      "sha256": "9341fda10adbfeb7efc94302b34507a3e227d7e7f5c432df3f5ac8753ff73d24",
+      "licenseSha256": "2e2cb5a98da665f2ab82a9fd01fb18c2337f845761b0c163f690ed65f3b94677",
+      "sizeBytes": 79696,
+      "postScriptName": "Sacramento-Regular",
+      "subfamily": "Regular",
+      "version": "Version 1.000",
+      "coverage": {
+        "unicodeCharacters": 370,
+        "hanCharacters": 0,
+        "sampleMissing": {
+          "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+          "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+          "rareHan": "龘𠮷𰻞",
+          "latin": ""
+        }
+      },
+      "variableAxes": [],
+      "usageNote": "仅覆盖拉丁等西文字形；中文会使用单独选定的中文字体回退。",
+      "familyAliases": [
+        "Sacramento"
+      ]
+    }
+  ],
+  "coverageSamples": {
+    "simplified": "中文阅读体验春风拂过书页你好世界这是一个温暖的故事。",
+    "traditional": "中文閱讀體驗春風拂過書頁你好世界這是一個溫暖的故事。",
+    "rareHan": "龘𠮷𰻞",
+    "latin": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  },
+  "totalFontBytes": 63419496
+}

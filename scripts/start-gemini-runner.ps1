@@ -727,6 +727,9 @@ $sourceManualPrewarmExtension = (Resolve-Path -LiteralPath (Join-Path $repositor
 $localRoot = Join-Path $env:LOCALAPPDATA 'NovelWeb/GeminiRunner'
 $stagedExtension = Join-Path $localRoot 'extension'
 $stagedManualPrewarmExtension = Join-Path $localRoot 'manual-prewarm-extension'
+$readingStyleRoot = Join-Path $env:LOCALAPPDATA 'NovelWeb/ReadingStyle'
+$readingRelease = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'userstyles/ai-reading/stylus-release.json') | ConvertFrom-Json
+$stagedReadingExtension = Join-Path $readingStyleRoot "stylus-v$($readingRelease.version)"
 $chromeProfile = Join-Path $localRoot 'chrome-profile'
 $runtimeRoot = Join-Path $localRoot 'runtime'
 $logDirectory = Join-Path $localRoot 'logs'
@@ -773,6 +776,33 @@ try {
   } catch {
     throw 'Another NovelWeb Gemini Runner launcher is already active.'
   }
+
+  # Network provisioning runs before the server's startup timeout. Install local
+  # fonts before Chrome starts so its renderer sees the new DirectWrite faces.
+  $nodeCommand = (Get-Command node.exe -ErrorAction Stop).Source
+  $openBeforeSetup = @(Get-DedicatedRunnerProcesses -ProfilePath $chromeProfile).Count -gt 0
+  if ($openBeforeSetup) {
+    Write-Host 'Checking reading fonts and Stylus for the running browser...'
+    & (Join-Path $scriptDirectory 'ensure-reading-fonts.ps1') -Check
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Reading fonts need setup. Close all dedicated NovelWeb Runner windows, then run start.bat again.'
+    }
+    & $nodeCommand (Join-Path $scriptDirectory 'ensure-reading-style.mjs') --root $readingStyleRoot --check
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Reading styles need setup. Close all dedicated NovelWeb Runner windows, then run start.bat again.'
+    }
+  } else {
+    Write-Host 'Preparing reading fonts and Stylus (first launch needs internet)...'
+    & (Join-Path $scriptDirectory 'ensure-reading-fonts.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Reading font setup failed; browser startup stopped.' }
+    & $nodeCommand (Join-Path $scriptDirectory 'ensure-reading-style.mjs') --root $readingStyleRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Reading style setup failed; browser startup stopped.' }
+  }
+  & $nodeCommand (Join-Path $scriptDirectory 'ensure-fonts.mjs')
+  if ($LASTEXITCODE -ne 0) { throw 'NovelWeb font setup failed.' }
+  $readingBuild = Get-Content -Raw -LiteralPath (Join-Path $stagedReadingExtension 'manager/build-info.json') | ConvertFrom-Json
+  $readingSourceHash = [string]$readingBuild.sourceHash
+  if ($readingSourceHash -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid reading style build fingerprint.' }
 
   $startupAttempt = 0
   while ($true) {
@@ -830,7 +860,7 @@ try {
   $tokenHash = Get-TokenHash -Token $pairingToken
   $runnerExtensionHash = Get-DirectorySha256Hex -RootPath $sourceExtension -ExcludedNames @('bootstrap.local.json')
   $manualPrewarmExtensionHash = Get-DirectorySha256Hex -RootPath $sourceManualPrewarmExtension
-  $extensionHash = Get-TokenHash -Token "runner:$runnerExtensionHash`nmanual-prewarm:$manualPrewarmExtensionHash"
+  $extensionHash = Get-TokenHash -Token "runner:$runnerExtensionHash`nmanual-prewarm:$manualPrewarmExtensionHash`nreading:$readingSourceHash"
   if (Test-Path -LiteralPath (Join-Path $sourceExtension 'bootstrap.local.json')) {
     throw 'Refusing to stage a source extension that contains bootstrap.local.json.'
   }
@@ -873,6 +903,8 @@ try {
     }
     $chromePath = Assert-PathWithin -BasePath $runtimeRoot -CandidatePath $runnerProcesses[0].ExecutablePath
     Assert-RunnerBackgroundLoaded -SourceExtension $sourceExtension -WorkerId ([string]$marker.workerId) -BootstrapId ([string]$marker.bootstrapId) -TimeoutSeconds $StartupTimeoutSeconds
+    & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-reading-style.mjs') --runtime $stagedReadingExtension --timeout $StartupTimeoutSeconds
+    if ($LASTEXITCODE -ne 0) { throw 'Loaded reading styles failed verification; startup stopped.' }
     $verificationStartedAt = [DateTime]::UtcNow.AddSeconds(-2)
   } else {
     Install-StagedExtension -SourcePath $sourceExtension -DestinationPath $stagedExtension -LocalRoot $localRoot
@@ -893,10 +925,10 @@ try {
     try {
       [IO.File]::WriteAllText($verifiedBootstrapPath, $bootstrap, (New-Object Text.UTF8Encoding($false)))
       Set-PrivateFileAcl -Path $verifiedBootstrapPath
-      if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',')) {
+      if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',') -or $stagedReadingExtension.Contains(',')) {
         throw 'The local extension staging path cannot contain a comma because Chrome separates unpacked extensions with commas.'
       }
-      $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension"
+      $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension,$stagedReadingExtension"
       $launchArguments = @(
         (ConvertTo-ChromeArgument -Name '--user-data-dir' -Value $chromeProfile),
         '--remote-debugging-address=127.0.0.1',
@@ -909,6 +941,11 @@ try {
       # The runner is an unattended worker.  Keep its dedicated browser out of
       # the user's foreground; the extension opens and drives Gemini itself.
       $launchedProcess = Start-Process -FilePath $chromePath -ArgumentList $launchArguments -WindowStyle Hidden -PassThru
+
+      # Chrome permits command-line extensions on the first load, but requires
+      # developer mode to keep an unpacked extension enabled after a reload.
+      & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'ensure-runner-developer-mode.mjs') --endpoint 'http://127.0.0.1:9223' --timeout $StartupTimeoutSeconds
+      if ($LASTEXITCODE -ne 0) { throw 'The dedicated Runner could not enable its unpacked extensions.' }
 
       $bootstrapMarker = "bootstrap:$bootstrapId"
       $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
@@ -932,6 +969,9 @@ try {
 
       Assert-RunnerBackgroundLoaded -SourceExtension $sourceExtension -WorkerId $pairedWorkerId -BootstrapId $bootstrapId -TimeoutSeconds $StartupTimeoutSeconds -ColdStart
 
+      & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-reading-style.mjs') --runtime $stagedReadingExtension --timeout $StartupTimeoutSeconds --cold-start
+      if ($LASTEXITCODE -ne 0) { throw 'Loaded reading styles failed verification; startup stopped before opening Gemini.' }
+
       $markerJson = [ordered]@{
         schemaVersion = 2
         serverUrl = $serverBaseUrl
@@ -952,10 +992,10 @@ try {
     }
   }
 
-  if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',')) {
+  if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',') -or $stagedReadingExtension.Contains(',')) {
     throw 'The local extension staging path cannot contain a comma because Chrome separates unpacked extensions with commas.'
   }
-  $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension"
+  $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension,$stagedReadingExtension"
   $runnerPages = @()
   try {
     # Windows PowerShell 5.1 treats an Invoke-RestMethod JSON array as one
@@ -1010,6 +1050,7 @@ try {
   }
 
   Write-Host 'NovelWeb Gemini Runner and manual prewarm extension are ready.'
+  Write-Host 'Reading fonts, Stylus, and the site style manager are ready.'
   Write-Host "Automation: $($uiUri.AbsoluteUri)"
   Write-Host 'The runner is connected and ready to execute NovelWeb tasks.'
 } finally {

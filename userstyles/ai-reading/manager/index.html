@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>样式管理 · AI 阅读</title>
+  <script src="../js/common.js"></script>
+  <script src="stylus-client.js"></script>
+  <link rel="stylesheet" href="manager.css">
+  <script src="manager.js" defer></script>
+</head>
+<body>
+  <main class="manager" aria-labelledby="page-title">
+    <header class="page-header">
+      <div><p class="eyebrow">AI READING / STYLUS</p><h1 id="page-title">样式管理</h1></div>
+      <button id="native-manager" class="quiet-button" type="button">原生管理 <span aria-hidden="true">↗</span></button>
+    </header>
+
+    <section class="target" aria-labelledby="target-host">
+      <div class="target-heading"><span class="section-label">当前网页</span><button id="refresh" class="text-button" type="button" disabled>刷新状态</button></div>
+      <h2 id="target-host">正在读取当前网页…</h2>
+      <p id="target-url" class="target-url">样式的匹配与启用状态将按这个完整网址判断。</p>
+      <div class="site-shortcuts" aria-label="切换管理的网站">
+        <span>切换到</span><button id="switch-chatgpt" class="site-button" type="button">ChatGPT</button><button id="switch-gemini" class="site-button" type="button">Gemini</button>
+      </div>
+    </section>
+
+    <dl class="stats" aria-label="样式统计">
+      <div><dt>已安装</dt><dd id="installed-count">—</dd></div>
+      <div><dt>本站匹配</dt><dd id="matching-count">—</dd></div>
+      <div><dt>本站启用（含字体）</dt><dd id="active-count">—</dd></div>
+    </dl>
+    <p id="active-breakdown" class="active-breakdown" role="status">正在读取主题与字体状态…</p>
+
+    <section class="mode-section" aria-labelledby="mode-heading">
+      <div class="section-heading"><h2 id="mode-heading">主题启用方式</h2><span class="default-note">字体独立控制</span></div>
+      <fieldset class="mode-picker" id="mode-picker" disabled>
+        <legend class="sr-only">本站主题启用方式</legend>
+        <label><input type="radio" name="mode" value="single" checked><span><strong>单选模式</strong><small>一次使用一个主题</small></span></label>
+        <label><input type="radio" name="mode" value="stack"><span><strong>叠加模式</strong><small>同时使用多个主题</small></span></label>
+      </fieldset>
+      <p id="mode-description" class="mode-description">主题一次只选一个；阅读字体单独勾选。</p>
+    </section>
+
+    <section id="global-disabled" class="global-disabled" role="status" hidden>
+      <div><strong>Stylus 总开关已关闭</strong><p>已选样式暂不作用于网页。请在原生管理中打开总开关，再刷新这里的实际状态。</p></div>
+      <button id="global-manager" class="quiet-button" type="button">打开原生管理 <span aria-hidden="true">↗</span></button>
+    </section>
+    <div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+    <div id="error" class="error" role="alert" hidden></div>
+
+    <section class="library" aria-label="样式列表">
+      <div class="list-toolbar">
+        <div class="filters" role="tablist" aria-label="筛选已安装样式">
+          <button id="filter-matching" type="button" role="tab" aria-selected="true" aria-controls="style-list" data-filter="matching">本站可用</button>
+          <button id="filter-active" type="button" role="tab" aria-selected="false" aria-controls="style-list" tabindex="-1" data-filter="active">已启用</button>
+          <button id="filter-all" type="button" role="tab" aria-selected="false" aria-controls="style-list" tabindex="-1" data-filter="all">全部已安装</button>
+        </div>
+        <button id="disable-all" class="text-button disable-all" type="button" disabled>停用本站所有样式</button>
+      </div>
+      <div id="style-list" class="style-list" role="tabpanel" aria-labelledby="filter-matching" aria-busy="true" tabindex="0"></div>
+      <div id="empty-state" class="empty-state"><p id="empty-title">正在读取样式…</p><p id="empty-description">稍后会显示这个网页实际使用的样式。</p></div>
+    </section>
+
+    <footer class="page-footer"><p>主题使用单选或叠加模式；“中文阅读”作为独立字体与阅读排版开关，不占主题名额。本站启用数包含主题和字体样式。其他网站的样式仍保留在“全部已安装”中。</p><p>中英文字体、字号和行距在“中文阅读”的“字体设置”中调整；外观主题使用各自的“配置”。</p></footer>
+  </main>
+
+  <template id="style-card-template">
+    <article class="style-card">
+      <div class="card-main">
+        <label class="style-choice"><input class="style-selector" type="radio" name="site-style"><span class="style-name"></span></label>
+        <span class="style-state"></span>
+      </div>
+      <span class="style-kind"></span>
+      <div class="scope"><span class="scope-label">适用范围</span><span class="scope-text"></span></div>
+      <ul class="risk-list" aria-label="适用范围提醒" hidden></ul>
+      <div class="card-actions"><p class="style-detail"></p><div class="action-buttons"><button class="configure quiet-button" type="button">配置 <span aria-hidden="true">↗</span></button><button class="toggle primary-button" type="button">启用</button></div></div>
+    </article>
+  </template>
+</body>
+</html>
