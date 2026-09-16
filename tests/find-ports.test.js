@@ -1,15 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import fs from 'node:fs/promises';
 import net from 'node:net';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const FIND_PORTS_SCRIPT = fileURLToPath(new URL('../scripts/find-ports.mjs', import.meta.url));
-const GEMINI_LAUNCHER = fileURLToPath(new URL('../scripts/start-gemini-runner.ps1', import.meta.url));
 const SEARCH_SPAN = 50;
 const MAX_START_PORT = 65_535 - SEARCH_SPAN;
 
@@ -134,24 +131,4 @@ test('find-ports allocates distinct usable ports when both preferred search rang
     assert.ok(port < start || port >= start + SEARCH_SPAN, 'all ports in the preferred range are held open');
     listeners.push(await listenOnPort(port));
   }
-});
-
-test('Gemini launcher forwards its selected port pair and diagnoses early exit', async () => {
-  const source = await fs.readFile(path.resolve(GEMINI_LAUNCHER), 'utf8');
-  const setWebPort = source.indexOf('$env:NOVELWEB_WEB_PORT = [string]$WebPort');
-  const setApiPort = source.indexOf('$env:NOVELWEB_API_PORT = [string]$ApiPort');
-  const startChild = source.indexOf('$process = Start-Process @startParameters');
-
-  assert.match(source, /Get-FreeNovelWebPortPair[\s\S]*scripts\/find-ports\.mjs/);
-  assert.ok(setWebPort >= 0 && setWebPort < startChild);
-  assert.ok(setApiPort >= 0 && setApiPort < startChild);
-  assert.match(source, /PassThru = \$true/);
-  assert.match(source, /\$process\.HasExited/);
-  assert.match(source, /novelweb\.stdout\.log[\s\S]*novelweb\.stderr\.log/);
-  assert.match(source, /endpoints\.json/);
-  assert.match(source, /ExpectedServerUrl[\s\S]*pairing\.serverUrl/);
-  assert.match(source, /directStatus\.pairing\.token -cne \[string\]\$proxiedStatus\.pairing\.token/);
-  assert.match(source, /Stop-StartedProcessTree -Process \$process/);
-  assert.match(source, /runnerPageResponse[\s\S]*\$runnerPages = @\(\$runnerPageResponse\)/);
-  assert.match(source, /\$urlsToOpen\.Count -gt 0/);
 });

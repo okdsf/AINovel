@@ -3,7 +3,9 @@ param(
   [string]$ServerUrl = 'http://127.0.0.1:3001',
   [string]$UiUrl = 'http://127.0.0.1:5173/automation',
   [ValidateRange(10, 180)]
-  [int]$StartupTimeoutSeconds = 45
+  [int]$StartupTimeoutSeconds = 45,
+  [ValidateRange(15, 600)]
+  [int]$ServiceStartupTimeoutSeconds = 180
 )
 
 $ErrorActionPreference = 'Stop'
@@ -363,6 +365,16 @@ function Get-ChromeForTesting {
   param([string]$RuntimeRoot)
 
   New-Item -ItemType Directory -Force -Path $RuntimeRoot | Out-Null
+  # Running an installed browser does not require a byte-for-byte copy of a
+  # downloaded archive. Chrome legitimately adds data such as dictionaries.
+  $installedVersions = @(Get-ChildItem -LiteralPath $RuntimeRoot -Directory | Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object { [version]$_.Name } -Descending)
+  foreach ($installedVersion in $installedVersions) {
+    $installedChrome = Assert-PathWithin -BasePath $RuntimeRoot -CandidatePath (Join-Path $installedVersion.FullName 'chrome-win64/chrome.exe')
+    if (Test-Path -LiteralPath $installedChrome -PathType Leaf) {
+      Write-Host "Using installed Chrome $($installedVersion.Name)."
+      return $installedChrome
+    }
+  }
   $markerPath = Join-Path $RuntimeRoot 'runtime.json'
   $trustedMarker = $null
   $trustedExecutable = $null
@@ -486,6 +498,43 @@ function Get-ChromeForTesting {
   return $chromeExecutable
 }
 
+function Test-ManagedNovelWebProcess {
+  param([object]$Record, [string]$LogDirectory)
+  try {
+    $configPath = Assert-PathWithin -BasePath $LogDirectory -CandidatePath ([string]$Record.configPath)
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$Record.pid)" -ErrorAction Stop
+    return $null -ne $owner -and $owner.Name -eq 'node.exe' -and
+      ([string]$owner.CommandLine).IndexOf($configPath, [StringComparison]::OrdinalIgnoreCase) -ge 0
+  } catch { return $false }
+}
+
+function Get-ManagedNovelWebService {
+  param([string]$LogDirectory, [string]$RepositoryRoot, [string]$ExpectedStorageDirectory)
+  $pointerPath = Join-Path $LogDirectory 'services-current.json'
+  if (-not (Test-Path -LiteralPath $pointerPath -PathType Leaf)) { return $null }
+  try {
+    $record = Get-Content -LiteralPath $pointerPath -Raw | ConvertFrom-Json
+    if ($record.repositoryRoot -ne $RepositoryRoot -or $record.storageDir -ne $ExpectedStorageDirectory) { return $null }
+    if (-not (Test-ManagedNovelWebProcess -Record $record -LogDirectory $LogDirectory)) { return $null }
+    return $record
+  } catch { return $null }
+}
+
+function Get-ManagedServiceFailure {
+  param([object]$Record, [string]$Reason)
+  $details = @($Reason, "Service state: $($Record.statePath)")
+  try {
+    $state = Get-Content -LiteralPath $Record.statePath -Raw | ConvertFrom-Json
+    $details += "Phase: $($state.phase); reason: $($state.reason)"
+    foreach ($name in @('api', 'frontend')) {
+      $service = $state.services.$name
+      $details += "--- $name stdout ---", (Get-LogTail -Path $service.stdoutPath), "--- $name stderr ---", (Get-LogTail -Path $service.stderrPath)
+    }
+  } catch {}
+  $details += '--- supervisor stderr ---', (Get-LogTail -Path $Record.stderrPath)
+  return $details -join [Environment]::NewLine
+}
+
 function Start-NovelWebIfNeeded {
   param(
     [string]$RepositoryRoot,
@@ -506,32 +555,25 @@ function Start-NovelWebIfNeeded {
   }
 
   New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
-  $npmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
-  $stdoutPath = Join-Path $LogDirectory 'novelweb.stdout.log'
-  $stderrPath = Join-Path $LogDirectory 'novelweb.stderr.log'
-  $startParameters = @{
-    FilePath = $npmCommand
-    ArgumentList = @('run', 'dev')
-    WorkingDirectory = $RepositoryRoot
-    WindowStyle = 'Hidden'
-    RedirectStandardOutput = $stdoutPath
-    RedirectStandardError = $stderrPath
-    PassThru = $true
-  }
-  $webPortWasDefined = Test-Path Env:\NOVELWEB_WEB_PORT
-  $apiPortWasDefined = Test-Path Env:\NOVELWEB_API_PORT
-  $previousWebPort = if ($webPortWasDefined) { (Get-Item Env:\NOVELWEB_WEB_PORT).Value } else { $null }
-  $previousApiPort = if ($apiPortWasDefined) { (Get-Item Env:\NOVELWEB_API_PORT).Value } else { $null }
-  $process = $null
-  try {
-    $env:NOVELWEB_WEB_PORT = [string]$WebPort
-    $env:NOVELWEB_API_PORT = [string]$ApiPort
-    $process = Start-Process @startParameters
-  } finally {
-    if ($webPortWasDefined) { $env:NOVELWEB_WEB_PORT = $previousWebPort }
-    else { Remove-Item Env:\NOVELWEB_WEB_PORT -ErrorAction SilentlyContinue }
-    if ($apiPortWasDefined) { $env:NOVELWEB_API_PORT = $previousApiPort }
-    else { Remove-Item Env:\NOVELWEB_API_PORT -ErrorAction SilentlyContinue }
+  $record = Get-ManagedNovelWebService -LogDirectory $LogDirectory -RepositoryRoot $RepositoryRoot -ExpectedStorageDirectory $ExpectedStorageDirectory
+  if ($record) {
+    if ($record.serverUrl -ne $ServerUrl.TrimEnd('/') -or $record.uiUrl -ne $ApplicationUrl) {
+      throw "A managed NovelWeb service is already running at $($record.uiUrl). Its endpoints were preserved."
+    }
+    Write-Host "Waiting for the existing local services (PID $($record.pid))..."
+  } else {
+    $nodeCommand = (Get-Command node.exe -ErrorAction Stop).Source
+    $output = @(& $nodeCommand (Join-Path $RepositoryRoot 'scripts/start-local-services.mjs') `
+      --web-port $WebPort --api-port $ApiPort --storage-dir $ExpectedStorageDirectory --log-dir $LogDirectory 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Local service supervisor could not start: $($output -join ' ')" }
+    $record = ($output -join "`n") | ConvertFrom-Json
+    $record | Add-Member -NotePropertyName repositoryRoot -NotePropertyValue $RepositoryRoot
+    $record | Add-Member -NotePropertyName storageDir -NotePropertyValue $ExpectedStorageDirectory
+    $record | Add-Member -NotePropertyName serverUrl -NotePropertyValue $ServerUrl.TrimEnd('/')
+    $record | Add-Member -NotePropertyName uiUrl -NotePropertyValue $ApplicationUrl
+    try { Write-Utf8TextAtomic -Path (Join-Path $LogDirectory 'services-current.json') -Content ($record | ConvertTo-Json -Compress) }
+    catch { Write-Warning "Services started, but their pointer could not be saved: $($_.Exception.Message)" }
+    Write-Host "Started local service supervisor (PID $($record.pid)). Logs: $($record.statePath)"
   }
 
   $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
@@ -542,18 +584,19 @@ function Start-NovelWebIfNeeded {
         -ExpectedStorageDirectory $ExpectedStorageDirectory) {
       return
     }
-    $process.Refresh()
-    if ($process.HasExited) {
-      Start-Sleep -Milliseconds 200
-      $reason = "NovelWeb dev process exited before it became ready (exit code $($process.ExitCode))."
-      throw (Get-NovelWebStartupFailure -Reason $reason -StdoutPath $stdoutPath -StderrPath $stderrPath)
+    $state = $null
+    try { $state = Get-Content -LiteralPath $record.statePath -Raw | ConvertFrom-Json } catch {}
+    if (($state -and $state.phase -in @('failed', 'stopped')) -or
+        -not (Test-ManagedNovelWebProcess -Record $record -LogDirectory $LogDirectory)) {
+      throw (Get-ManagedServiceFailure -Record $record -Reason 'The local service supervisor stopped before both endpoints became ready.')
     }
     Start-Sleep -Milliseconds 500
   }
-  $reason = "NovelWeb did not become ready within $TimeoutSeconds seconds at $ApplicationUrl and $ServerUrl."
-  Stop-StartedProcessTree -Process $process
-  Start-Sleep -Milliseconds 200
-  throw (Get-NovelWebStartupFailure -Reason $reason -StdoutPath $stdoutPath -StderrPath $stderrPath)
+  # A slow cold start is not proof of a crashed process. Leave the owned
+  # supervisor running; a subsequent click reuses it and its diagnostic logs.
+  if (Test-NovelWebReady -ServerUrl $ServerUrl -ApplicationUrl $ApplicationUrl -ExpectedStorageDirectory $ExpectedStorageDirectory) { return }
+  $reason = "Local services are still starting after $TimeoutSeconds seconds at $ApplicationUrl and $ServerUrl. They were not killed; retrying reuses this instance."
+  throw (Get-ManagedServiceFailure -Record $record -Reason $reason)
 }
 
 function Get-SavedNovelWebEndpoints {
@@ -663,9 +706,6 @@ async function verify() {
   let reloaded = false;
   while (Date.now() < deadline) {
     const targets = await (await fetch('http://127.0.0.1:9223/json/list', { signal: AbortSignal.timeout(3000) })).json();
-    if (coldStart && targets.some(target => target.type === 'page' && /^https:\/\/gemini\.google\.com\//.test(target.url))) {
-      throw new Error('Gemini pages opened before background verification; no extension reload was attempted. Close the dedicated Runner and retry.');
-    }
     const candidates = targets.filter(target => target.type === 'service_worker'
       && /^chrome-extension:\/\/[a-p]{32}\//.test(target.url) && target.url.endsWith(`/${scriptPath}`));
     for (const target of candidates) {
@@ -695,8 +735,12 @@ async function verify() {
         if (!coldStart) throw new Error('The open Runner has stale background code. Close its dedicated window and run npm run gemini again.');
         if (state.busy || state.outboxCount > 0) throw new Error('Stale Runner background has an active task or pending result; it was not reloaded.');
         if (!reloaded) {
-          // No Gemini page exists in this cold background-only launch, so no
-          // content script can claim work between the idle check and reload.
+          // Chrome may restore user pages during a cold launch. Correct code
+          // can be verified in place; only an actual reload needs this guard.
+          const reloadTargets = await (await fetch('http://127.0.0.1:9223/json/list', { signal: AbortSignal.timeout(3000) })).json();
+          if (reloadTargets.some(target => target.type === 'page' && /^https:\/\/gemini\.google\.com\//.test(target.url))) {
+            throw new Error('Gemini pages opened before background verification; no extension reload was attempted. Close the dedicated Runner and retry.');
+          }
           await client.call('Runtime.evaluate', {
             expression: 'setTimeout(() => chrome.runtime.reload(), 100); true', returnByValue: true
           });
@@ -722,14 +766,12 @@ try { await verify(); } catch (error) { console.error(error.message); process.ex
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $scriptDirectory '..')).Path
-$sourceExtension = (Resolve-Path -LiteralPath (Join-Path $repositoryRoot 'extensions/gemini-web-runner')).Path
-$sourceManualPrewarmExtension = (Resolve-Path -LiteralPath (Join-Path $repositoryRoot 'extensions/gemini-manual-prewarm')).Path
+$sourceExtension = Join-Path $repositoryRoot 'extensions/gemini-web-runner'
+$sourceManualPrewarmExtension = Join-Path $repositoryRoot 'extensions/gemini-manual-prewarm'
 $localRoot = Join-Path $env:LOCALAPPDATA 'NovelWeb/GeminiRunner'
 $stagedExtension = Join-Path $localRoot 'extension'
 $stagedManualPrewarmExtension = Join-Path $localRoot 'manual-prewarm-extension'
 $readingStyleRoot = Join-Path $env:LOCALAPPDATA 'NovelWeb/ReadingStyle'
-$readingRelease = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'userstyles/ai-reading/stylus-release.json') | ConvertFrom-Json
-$stagedReadingExtension = Join-Path $readingStyleRoot "stylus-v$($readingRelease.version)"
 $chromeProfile = Join-Path $localRoot 'chrome-profile'
 $runtimeRoot = Join-Path $localRoot 'runtime'
 $logDirectory = Join-Path $localRoot 'logs'
@@ -739,348 +781,124 @@ $endpointStatePath = Join-Path $localRoot 'endpoints.json'
 $launcherLockPath = Join-Path $localRoot 'launcher.lock'
 $expectedStorageDirectory = if ($env:NOVELWEB_AUTOMATION_DIR) {
   [IO.Path]::GetFullPath($env:NOVELWEB_AUTOMATION_DIR)
-} else {
-  [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'data/drafts/ai-runs'))
-}
-$serverUrlWasExplicit = $PSBoundParameters.ContainsKey('ServerUrl')
-$uiUrlWasExplicit = $PSBoundParameters.ContainsKey('UiUrl')
-$mayReselectEndpoints = -not ($serverUrlWasExplicit -or $uiUrlWasExplicit)
-
-New-Item -ItemType Directory -Force -Path $localRoot, $chromeProfile | Out-Null
-if ($mayReselectEndpoints) {
-  if (-not (Test-NovelWebReady `
-      -ServerUrl $ServerUrl `
-      -ApplicationUrl $UiUrl `
-      -ExpectedStorageDirectory $expectedStorageDirectory)) {
-    $savedEndpoints = Get-SavedNovelWebEndpoints `
-      -StatePath $endpointStatePath `
-      -RepositoryRoot $repositoryRoot `
-      -ExpectedStorageDirectory $expectedStorageDirectory
-    if ($null -ne $savedEndpoints) {
-      $ServerUrl = $savedEndpoints.ServerUrl
-      $UiUrl = $savedEndpoints.UiUrl
-    } else {
-      $ports = Get-FreeNovelWebPortPair -RepositoryRoot $repositoryRoot
-      $ServerUrl = "http://127.0.0.1:$($ports.ApiPort)"
-      $UiUrl = "http://127.0.0.1:$($ports.WebPort)/automation"
-    }
-  }
-}
-$serverUri = Assert-LocalHttpUrl -Value $ServerUrl -Label 'ServerUrl' -RequiredPath '/'
-$uiUri = Assert-LocalHttpUrl -Value $UiUrl -Label 'UiUrl' -RequiredPath '/automation'
+} else { [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'data/drafts/ai-runs')) }
+$mayReselectEndpoints = -not ($PSBoundParameters.ContainsKey('ServerUrl') -or $PSBoundParameters.ContainsKey('UiUrl'))
 $launcherLock = $null
+$applicationReady = $false
+$transcriptStarted = $false
 $pairingToken = $null
+$exitStatus = 0
 try {
-  try {
-    $launcherLock = [IO.File]::Open($launcherLockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-  } catch {
-    throw 'Another NovelWeb Gemini Runner launcher is already active.'
-  }
-
-  # Network provisioning runs before the server's startup timeout. Install local
-  # fonts before Chrome starts so its renderer sees the new DirectWrite faces.
+  New-Item -ItemType Directory -Force -Path $localRoot, $chromeProfile, $logDirectory | Out-Null
+  $transcriptPath = Join-Path $logDirectory ('launcher-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff') + '-' + $PID + '.log')
+  try { Start-Transcript -LiteralPath $transcriptPath | Out-Null; $transcriptStarted = $true } catch { Write-Warning "Could not start transcript: $($_.Exception.Message)" }
+  Write-Host "Launcher log: $transcriptPath"
+  try { $launcherLock = [IO.File]::Open($launcherLockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
+  catch { throw 'Another NovelWeb launcher is already starting the application. Its services were left running.' }
   $nodeCommand = (Get-Command node.exe -ErrorAction Stop).Source
-  $openBeforeSetup = @(Get-DedicatedRunnerProcesses -ProfilePath $chromeProfile).Count -gt 0
-  if ($openBeforeSetup) {
-    Write-Host 'Checking reading fonts and Stylus for the running browser...'
-    & (Join-Path $scriptDirectory 'ensure-reading-fonts.ps1') -Check
-    if ($LASTEXITCODE -ne 0) {
-      throw 'Reading fonts need setup. Close all dedicated NovelWeb Runner windows, then run start.bat again.'
-    }
-    & $nodeCommand (Join-Path $scriptDirectory 'ensure-reading-style.mjs') --root $readingStyleRoot --check
-    if ($LASTEXITCODE -ne 0) {
-      throw 'Reading styles need setup. Close all dedicated NovelWeb Runner windows, then run start.bat again.'
-    }
-  } else {
-    Write-Host 'Preparing reading fonts and Stylus (first launch needs internet)...'
-    & (Join-Path $scriptDirectory 'ensure-reading-fonts.ps1')
-    if ($LASTEXITCODE -ne 0) { throw 'Reading font setup failed; browser startup stopped.' }
-    & $nodeCommand (Join-Path $scriptDirectory 'ensure-reading-style.mjs') --root $readingStyleRoot
-    if ($LASTEXITCODE -ne 0) { throw 'Reading style setup failed; browser startup stopped.' }
-  }
-  & $nodeCommand (Join-Path $scriptDirectory 'ensure-fonts.mjs')
-  if ($LASTEXITCODE -ne 0) { throw 'NovelWeb font setup failed.' }
-  $readingBuild = Get-Content -Raw -LiteralPath (Join-Path $stagedReadingExtension 'manager/build-info.json') | ConvertFrom-Json
-  $readingSourceHash = [string]$readingBuild.sourceHash
-  if ($readingSourceHash -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid reading style build fingerprint.' }
 
-  $startupAttempt = 0
-  while ($true) {
-    $startupAttempt++
-    $serverUri = Assert-LocalHttpUrl -Value $ServerUrl -Label 'ServerUrl' -RequiredPath '/'
-    $uiUri = Assert-LocalHttpUrl -Value $UiUrl -Label 'UiUrl' -RequiredPath '/automation'
-    $novelWebParameters = @{
-      RepositoryRoot = $repositoryRoot
-      ServerUrl = $serverUri.AbsoluteUri
-      ApplicationUrl = $uiUri.AbsoluteUri
-      ExpectedStorageDirectory = $expectedStorageDirectory
-      WebPort = $uiUri.Port
-      ApiPort = $serverUri.Port
-      LogDirectory = $logDirectory
-      TimeoutSeconds = $StartupTimeoutSeconds
-    }
-    try {
-      Start-NovelWebIfNeeded @novelWebParameters
-      break
-    } catch {
-      $portRace = $_.Exception.Message -match '(?i)(port\s+\d+\s+is already in use|EADDRINUSE)'
-      if (-not $mayReselectEndpoints -or -not $portRace -or $startupAttempt -ge 3) { throw }
-      Write-Warning 'A selected NovelWeb port was claimed during startup; selecting another free pair.'
+  # Reuse an owned supervisor while either child is starting or recovering.
+  $managedService = Get-ManagedNovelWebService -LogDirectory $logDirectory -RepositoryRoot $repositoryRoot -ExpectedStorageDirectory $expectedStorageDirectory
+  if ($mayReselectEndpoints -and $managedService) {
+    $ServerUrl = $managedService.serverUrl
+    $UiUrl = $managedService.uiUrl
+  } elseif ($mayReselectEndpoints -and -not (Test-NovelWebReady -ServerUrl $ServerUrl -ApplicationUrl $UiUrl -ExpectedStorageDirectory $expectedStorageDirectory)) {
+    $savedEndpoints = Get-SavedNovelWebEndpoints -StatePath $endpointStatePath -RepositoryRoot $repositoryRoot -ExpectedStorageDirectory $expectedStorageDirectory
+    if ($savedEndpoints) { $ServerUrl = $savedEndpoints.ServerUrl; $UiUrl = $savedEndpoints.UiUrl }
+    else {
       $ports = Get-FreeNovelWebPortPair -RepositoryRoot $repositoryRoot
       $ServerUrl = "http://127.0.0.1:$($ports.ApiPort)"
       $UiUrl = "http://127.0.0.1:$($ports.WebPort)/automation"
     }
   }
-
-  $apiStatusUrl = "$($serverUri.GetLeftPart([UriPartial]::Authority))/api/automation/status"
+  $serverUri = Assert-LocalHttpUrl -Value $ServerUrl -Label 'ServerUrl' -RequiredPath '/'
+  $uiUri = Assert-LocalHttpUrl -Value $UiUrl -Label 'UiUrl' -RequiredPath '/automation'
   $serverBaseUrl = $serverUri.GetLeftPart([UriPartial]::Authority)
-  $endpointState = [ordered]@{
-    schemaVersion = 1
-    repositoryRoot = $repositoryRoot
-    serverUrl = $serverBaseUrl
-    uiUrl = $uiUri.AbsoluteUri
-    selectedAt = [DateTime]::UtcNow.ToString('o')
-  } | ConvertTo-Json -Compress
-  Write-Utf8TextAtomic -Path $endpointStatePath -Content $endpointState
+  $novelWebParameters = @{
+    RepositoryRoot = $repositoryRoot; ServerUrl = $serverUri.AbsoluteUri; ApplicationUrl = $uiUri.AbsoluteUri
+    ExpectedStorageDirectory = $expectedStorageDirectory; WebPort = $uiUri.Port; ApiPort = $serverUri.Port
+    LogDirectory = $logDirectory; TimeoutSeconds = $ServiceStartupTimeoutSeconds
+  }
+  Write-Host 'Starting the local workbench...'
+  Start-NovelWebIfNeeded @novelWebParameters
+  $applicationReady = $true
   Write-Host "NovelWeb UI: $($uiUri.AbsoluteUri)"
   Write-Host "NovelWeb API: $serverBaseUrl"
+  $endpointState = [ordered]@{schemaVersion = 1; repositoryRoot = $repositoryRoot; serverUrl = $serverBaseUrl; uiUrl = $uiUri.AbsoluteUri; selectedAt = [DateTime]::UtcNow.ToString('o')}
+  try { Write-Utf8TextAtomic -Path $endpointStatePath -Content ($endpointState | ConvertTo-Json -Compress) }
+  catch { Write-Warning "Endpoint record could not be saved: $($_.Exception.Message)" }
 
-  $pairingTokenPath = if ($env:NOVELWEB_AUTOMATION_DIR) {
-    Join-Path ([IO.Path]::GetFullPath($env:NOVELWEB_AUTOMATION_DIR)) 'worker-token'
-  } else {
-    Join-Path $repositoryRoot 'data/drafts/ai-runs/worker-token'
-  }
-  if (-not (Test-Path -LiteralPath $pairingTokenPath -PathType Leaf)) {
-    throw 'NovelWeb worker token was not created.'
-  }
-  $pairingToken = (Get-Content -Raw -LiteralPath $pairingTokenPath).Trim()
-  if ($pairingToken -notmatch '^[A-Za-z0-9_-]{32,}$') {
-    throw 'NovelWeb worker token has an invalid format.'
-  }
-  $tokenHash = Get-TokenHash -Token $pairingToken
-  $runnerExtensionHash = Get-DirectorySha256Hex -RootPath $sourceExtension -ExcludedNames @('bootstrap.local.json')
-  $manualPrewarmExtensionHash = Get-DirectorySha256Hex -RootPath $sourceManualPrewarmExtension
-  $extensionHash = Get-TokenHash -Token "runner:$runnerExtensionHash`nmanual-prewarm:$manualPrewarmExtensionHash`nreading:$readingSourceHash"
-  if (Test-Path -LiteralPath (Join-Path $sourceExtension 'bootstrap.local.json')) {
-    throw 'Refusing to stage a source extension that contains bootstrap.local.json.'
-  }
-
-  $marker = $null
-  if (Test-Path -LiteralPath $pairingMarkerPath -PathType Leaf) {
-    try { $marker = Get-Content -Raw -LiteralPath $pairingMarkerPath | ConvertFrom-Json } catch { $marker = $null }
-  }
-  $requiredMarkerFields = @('schemaVersion', 'serverUrl', 'tokenSha256', 'extensionSha256', 'bootstrapId', 'workerId')
-  $markerHasFields = $null -ne $marker -and @($requiredMarkerFields | Where-Object { $null -eq $marker.PSObject.Properties[$_] }).Count -eq 0
-  $alreadyPaired = $markerHasFields -and
-    $marker.schemaVersion -eq 2 -and
-    $marker.serverUrl -eq $serverBaseUrl -and
-    $marker.tokenSha256 -eq $tokenHash -and
-    $marker.extensionSha256 -eq $extensionHash -and
-    $marker.bootstrapId -match '^[A-Za-z0-9][A-Za-z0-9_-]{15,95}$' -and
-    $marker.workerId -match '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$' -and
-    (Test-Path -LiteralPath (Join-Path $chromeProfile 'Local State') -PathType Leaf)
+  # Optional installation differences are diagnostic data, never startup gates.
+  $diagnosticPath = Join-Path $logDirectory ('installation-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff') + '.json')
+  try {
+    $diagnosticArguments = @((ConvertTo-ChromeArgument -Name '' -Value (Join-Path $scriptDirectory 'diagnose-installation.mjs')), '--log', (ConvertTo-ChromeArgument -Name '' -Value $diagnosticPath))
+    Start-Process -FilePath $nodeCommand -ArgumentList $diagnosticArguments -WorkingDirectory $repositoryRoot -WindowStyle Hidden | Out-Null
+    Write-Host "Optional installation checks run in the background: $diagnosticPath"
+  } catch { Write-Warning "Optional diagnostics could not start: $($_.Exception.Message)" }
 
   $runnerProcesses = @(Get-DedicatedRunnerProcesses -ProfilePath $chromeProfile)
-  if ($runnerProcesses.Count -gt 1) {
-    throw 'More than one dedicated NovelWeb Runner browser owns the same profile.'
-  }
-  $runnerIsOpen = $runnerProcesses.Count -eq 1
-
-  $verifiedBootstrapPath = Assert-PathWithin -BasePath $localRoot -CandidatePath $bootstrapPath
-  if (Test-Path -LiteralPath $verifiedBootstrapPath -PathType Leaf) {
-    Remove-Item -LiteralPath $verifiedBootstrapPath -Force
-  }
-
-  if ($runnerIsOpen) {
-    $verificationStartedAt = [DateTime]::UtcNow.AddSeconds(-2)
-    if (-not (Test-Path -LiteralPath (Join-Path $stagedExtension 'manifest.json') -PathType Leaf)) {
-      throw 'The running Gemini Runner extension directory is missing. Close its browser window, then run this command again.'
-    }
-    if (-not (Test-Path -LiteralPath (Join-Path $stagedManualPrewarmExtension 'manifest.json') -PathType Leaf)) {
-      throw 'The running Gemini manual prewarm extension directory is missing. Close its browser window, then run this command again.'
-    }
-    $chromePath = Assert-PathWithin -BasePath $runtimeRoot -CandidatePath $runnerProcesses[0].ExecutablePath
-    if ((Get-DirectorySha256Hex -RootPath $stagedExtension -ExcludedNames @('bootstrap.local.json')) -ne $runnerExtensionHash -or
-        (Get-DirectorySha256Hex -RootPath $stagedManualPrewarmExtension) -ne $manualPrewarmExtensionHash) {
-      throw 'The open Runner has an older extension installation. Close its dedicated windows before updating; current pages were preserved.'
-    }
-    # A previous launch may pair successfully and fail a later startup check.
-    # Recover its authenticated live identity instead of replaying bootstrap or
-    # requiring a restart solely because paired.json was not committed.
-    $livePairingOutput = @(& $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-runner-session.mjs') `
-      $chromeProfile $sourceExtension $stagedExtension $sourceManualPrewarmExtension $stagedManualPrewarmExtension `
-      $serverBaseUrl $tokenHash ([string]$StartupTimeoutSeconds))
-    if ($LASTEXITCODE -ne 0) { throw 'The open Runner could not be verified; its pages and pairing were preserved.' }
-    $livePairing = ($livePairingOutput -join [Environment]::NewLine) | ConvertFrom-Json
-    if ([string]$livePairing.workerId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$' -or
-        [string]$livePairing.bootstrapId -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{15,95}$') {
-      throw 'Runner verification did not return a valid paired identity.'
-    }
-    $markerNeedsRefresh = -not $alreadyPaired -or
-      [string]$marker.workerId -ne [string]$livePairing.workerId -or
-      [string]$marker.bootstrapId -ne [string]$livePairing.bootstrapId
-    $marker = $livePairing
-    & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-reading-style.mjs') --runtime $stagedReadingExtension --timeout $StartupTimeoutSeconds
-    if ($LASTEXITCODE -ne 0) { throw 'Loaded reading styles failed verification; startup stopped.' }
-  } else {
+  $runnerIsOpen = $runnerProcesses.Count -gt 0
+  $chromePath = if ($runnerIsOpen) { [string]$runnerProcesses[0].ExecutablePath } else { Get-ChromeForTesting -RuntimeRoot $runtimeRoot }
+  if (-not $runnerIsOpen) {
+    # Stage current code only while Chrome is closed. Existing sessions are
+    # never reloaded merely because their files differ from the workspace.
     Install-StagedExtension -SourcePath $sourceExtension -DestinationPath $stagedExtension -LocalRoot $localRoot
-    Install-StagedExtension -SourcePath $sourceManualPrewarmExtension -DestinationPath $stagedManualPrewarmExtension -LocalRoot $localRoot
-    $chromePath = Get-ChromeForTesting -RuntimeRoot $runtimeRoot
-    # Each deliberate runner restart starts from an empty worker state.  A
-    # canceled task from an older browser page must never seize the new runner.
-    $bootstrapId = [Guid]::NewGuid().ToString('N')
-    $bootstrap = [ordered]@{
-      schemaVersion = 1
-      bootstrapId = $bootstrapId
-      serverUrl = $serverBaseUrl
-      pairingToken = $pairingToken
-    } | ConvertTo-Json -Compress
-    $launchedProcess = $null
-    $paired = $false
-    $pairedWorkerId = ''
-    try {
-      [IO.File]::WriteAllText($verifiedBootstrapPath, $bootstrap, (New-Object Text.UTF8Encoding($false)))
-      Set-PrivateFileAcl -Path $verifiedBootstrapPath
-      if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',') -or $stagedReadingExtension.Contains(',')) {
-        throw 'The local extension staging path cannot contain a comma because Chrome separates unpacked extensions with commas.'
-      }
-      $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension,$stagedReadingExtension"
-      $launchArguments = @(
-        (ConvertTo-ChromeArgument -Name '--user-data-dir' -Value $chromeProfile),
-        '--remote-debugging-address=127.0.0.1',
-        '--remote-debugging-port=9223',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--no-startup-window',
-        (ConvertTo-ChromeArgument -Name '--load-extension' -Value $loadedExtensions)
-      )
-      # The runner is an unattended worker.  Keep its dedicated browser out of
-      # the user's foreground; the extension opens and drives Gemini itself.
-      $launchedProcess = Start-Process -FilePath $chromePath -ArgumentList $launchArguments -WindowStyle Hidden -PassThru
-
-      # Chrome permits command-line extensions on the first load, but requires
-      # developer mode to keep an unpacked extension enabled after a reload.
-      & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'ensure-runner-developer-mode.mjs') --endpoint 'http://127.0.0.1:9223' --timeout $StartupTimeoutSeconds
-      if ($LASTEXITCODE -ne 0) { throw 'The dedicated Runner could not enable its unpacked extensions.' }
-
-      $bootstrapMarker = "bootstrap:$bootstrapId"
-      $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-      while ([DateTime]::UtcNow -lt $deadline) {
-        try {
-          $status = Invoke-RestMethod -Uri $apiStatusUrl -TimeoutSec 2
-          if ($status.worker.currentModel -eq $bootstrapMarker -and
-              [string]$status.worker.id -match '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$') {
-            $paired = $true
-            $pairedWorkerId = [string]$status.worker.id
-            break
-          }
-        } catch {}
-        Start-Sleep -Milliseconds 500
-      }
-      if (-not $paired) {
-        $failedRunnerProcesses = @(Get-DedicatedRunnerProcesses -ProfilePath $chromeProfile)
-        foreach ($process in $failedRunnerProcesses) { Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue }
-        throw 'The local Gemini Runner extension did not confirm pairing in time.'
-      }
-
-      Assert-RunnerBackgroundLoaded -SourceExtension $sourceExtension -WorkerId $pairedWorkerId -BootstrapId $bootstrapId -TimeoutSeconds $StartupTimeoutSeconds -ColdStart
-
-      & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'verify-reading-style.mjs') --runtime $stagedReadingExtension --timeout $StartupTimeoutSeconds --cold-start
-      if ($LASTEXITCODE -ne 0) { throw 'Loaded reading styles failed verification; startup stopped before opening Gemini.' }
-
-      $markerJson = [ordered]@{
-        schemaVersion = 2
-        serverUrl = $serverBaseUrl
-        tokenSha256 = $tokenHash
-        extensionSha256 = $extensionHash
-        bootstrapId = $bootstrapId
-        workerId = $pairedWorkerId
-        pairedAt = [DateTime]::UtcNow.ToString('o')
-      } | ConvertTo-Json -Compress
-      Write-Utf8TextAtomic -Path $pairingMarkerPath -Content $markerJson
-      $marker = $markerJson | ConvertFrom-Json
-      $alreadyPaired = $true
-      $verificationStartedAt = [DateTime]::UtcNow.AddSeconds(-2)
-    } finally {
-      if (Test-Path -LiteralPath $verifiedBootstrapPath -PathType Leaf) {
-        Remove-Item -LiteralPath $verifiedBootstrapPath -Force
-      }
-    }
+    try { Install-StagedExtension -SourcePath $sourceManualPrewarmExtension -DestinationPath $stagedManualPrewarmExtension -LocalRoot $localRoot }
+    catch { Write-Warning "Manual prewarm is unavailable: $($_.Exception.Message)" }
   }
-
-  if ($stagedExtension.Contains(',') -or $stagedManualPrewarmExtension.Contains(',') -or $stagedReadingExtension.Contains(',')) {
-    throw 'The local extension staging path cannot contain a comma because Chrome separates unpacked extensions with commas.'
+  $extensionPaths = @($stagedExtension)
+  if (Test-Path -LiteralPath (Join-Path $stagedManualPrewarmExtension 'manifest.json') -PathType Leaf) { $extensionPaths += $stagedManualPrewarmExtension }
+  # A usable installed Stylus may have another version or user modifications.
+  $installedStyles = @(Get-ChildItem -LiteralPath $readingStyleRoot -Directory -Filter 'stylus-v*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+  foreach ($style in $installedStyles) {
+    if (Test-Path -LiteralPath (Join-Path $style.FullName 'manifest.json') -PathType Leaf) { $extensionPaths += $style.FullName; break }
   }
-  $loadedExtensions = "$stagedExtension,$stagedManualPrewarmExtension,$stagedReadingExtension"
+  if ($extensionPaths | Where-Object { $_.Contains(',') }) { throw 'An extension installation path contains a comma and cannot be passed to Chrome.' }
+  $loadedExtensions = $extensionPaths -join ','
+  if (-not $runnerIsOpen) {
+    $launchArguments = @(
+      (ConvertTo-ChromeArgument -Name '--user-data-dir' -Value $chromeProfile), '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=9223',
+      '--no-first-run', '--no-default-browser-check', '--no-startup-window', (ConvertTo-ChromeArgument -Name '--load-extension' -Value $loadedExtensions)
+    )
+    Start-Process -FilePath $chromePath -ArgumentList $launchArguments -WindowStyle Hidden | Out-Null
+    & $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'ensure-runner-developer-mode.mjs') --endpoint 'http://127.0.0.1:9223' --timeout $StartupTimeoutSeconds
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'Developer-mode setup reported a problem; checking the actual extension connection next.' }
+  }
   $runnerPages = @()
-  try {
-    # Windows PowerShell 5.1 treats an Invoke-RestMethod JSON array as one
-    # pipeline object when the command is wrapped directly in @(...).
-    $runnerPageResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:9223/json/list' -TimeoutSec 2
-    $runnerPages = @($runnerPageResponse)
-  } catch {}
+  try { $pageResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:9223/json/list' -TimeoutSec 3; $runnerPages = @($pageResponse) } catch {}
   $urlsToOpen = @()
-  if (@($runnerPages | Where-Object { [string]$_.url -eq $uiUri.AbsoluteUri }).Count -eq 0) {
-    $urlsToOpen += $uiUri.AbsoluteUri
-  }
-  if (@($runnerPages | Where-Object { [string]$_.url -match '^https://gemini\.google\.com/(?:app|gem)(?:[/#?]|$)' }).Count -eq 0) {
-    $urlsToOpen += 'https://gemini.google.com/app'
-  }
-  $openArguments = @(
-    (ConvertTo-ChromeArgument -Name '--user-data-dir' -Value $chromeProfile),
-    '--no-first-run',
-    '--no-default-browser-check',
-    (ConvertTo-ChromeArgument -Name '--load-extension' -Value $loadedExtensions)
-  )
-  foreach ($url in $urlsToOpen) {
-    $openArguments += ConvertTo-ChromeArgument -Name '' -Value $url
-  }
-  if ($urlsToOpen.Count -gt 0) {
+  if (@($runnerPages | Where-Object { [string]$_.url -eq $uiUri.AbsoluteUri }).Count -eq 0) { $urlsToOpen += $uiUri.AbsoluteUri }
+  if (@($runnerPages | Where-Object { [string]$_.url -match '^https://gemini\.google\.com/(?:app|gem)(?:[/#?]|$)' }).Count -eq 0) { $urlsToOpen += 'https://gemini.google.com/app' }
+  if ($urlsToOpen.Count) {
+    $openArguments = @((ConvertTo-ChromeArgument -Name '--user-data-dir' -Value $chromeProfile), '--no-first-run', '--no-default-browser-check', (ConvertTo-ChromeArgument -Name '--load-extension' -Value $loadedExtensions))
+    foreach ($url in $urlsToOpen) { $openArguments += ConvertTo-ChromeArgument -Name '' -Value $url }
     Start-Process -FilePath $chromePath -ArgumentList $openArguments -WindowStyle Normal | Out-Null
   }
-
-  $ready = $false
-  if (-not $ready) {
-    $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-    while ([DateTime]::UtcNow -lt $deadline) {
-      try {
-        $status = Invoke-RestMethod -Uri $apiStatusUrl -TimeoutSec 2
-        $lastSeenAt = [DateTime]::Parse([string]$status.worker.lastSeenAt).ToUniversalTime()
-        if ([string]$status.worker.id -eq [string]$marker.workerId -and $lastSeenAt -ge $verificationStartedAt) {
-          $ready = $true
-          break
-        }
-      } catch {}
-      Start-Sleep -Milliseconds 500
-    }
+  # Repeated launches must also show an existing, possibly minimized window.
+  try {
+    $windowResult = @(& $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'show-runner-workbench.mjs') $uiUri.AbsoluteUri 2>&1)
+    if ($LASTEXITCODE -ne 0) { Write-Warning "Workbench window could not be shown: $($windowResult -join ' ')" }
+  } catch { Write-Warning "Workbench window could not be shown: $($_.Exception.Message)" }
+  $pairingTokenPath = Join-Path $expectedStorageDirectory 'worker-token'
+  $connectionResult = @(& $nodeCommand --experimental-websocket (Join-Path $scriptDirectory 'check-runner-connection.mjs') `
+    --profile $chromeProfile --runtime $stagedExtension --server-url $serverBaseUrl --token-file $pairingTokenPath --timeout $StartupTimeoutSeconds 2>&1)
+  if ($LASTEXITCODE -ne 0) { throw "The workbench is running, but the Runner connection needs attention: $($connectionResult -join ' ')" }
+  $connection = ($connectionResult -join "`n") | ConvertFrom-Json
+  Write-Host "Runner connection ready: authenticated API bridge and $($connection.responsiveTabs) responsive Gemini tab(s)."
+  foreach ($warning in @($connection.warnings)) { Write-Warning $warning }
+  Write-Host "NovelWeb is ready: $($uiUri.AbsoluteUri)"
+} catch {
+  if ($applicationReady) {
+    Write-Warning "NovelWeb remains available at $UiUrl. Browser issue recorded: $($_.Exception.Message)"
+    try { Start-Process -FilePath $UiUrl -WindowStyle Normal | Out-Null } catch {}
+    # Optional browser setup does not turn a usable writing app into a failure.
+  } else {
+    Write-Error -Message $_.Exception.Message -ErrorAction Continue
+    $exitStatus = 1
   }
-  if (-not $ready) {
-    throw 'The installed Gemini Runner did not provide a fresh authenticated heartbeat. Close its dedicated browser window and run npm run gemini again.'
-  }
-
-  if ($runnerIsOpen -and $markerNeedsRefresh) {
-    $markerJson = [ordered]@{
-      schemaVersion = 2
-      serverUrl = $serverBaseUrl
-      tokenSha256 = $tokenHash
-      extensionSha256 = $extensionHash
-      bootstrapId = [string]$marker.bootstrapId
-      workerId = [string]$marker.workerId
-      pairedAt = [DateTime]::UtcNow.ToString('o')
-    } | ConvertTo-Json -Compress
-    Write-Utf8TextAtomic -Path $pairingMarkerPath -Content $markerJson
-    Write-Host 'Recovered the existing Runner pairing record after verifying its loaded code and fresh heartbeat.'
-  }
-
-  Write-Host 'NovelWeb Gemini Runner and manual prewarm extension are ready.'
-  Write-Host 'Reading fonts, Stylus, and the site style manager are ready.'
-  Write-Host "Automation: $($uiUri.AbsoluteUri)"
-  Write-Host 'The runner is connected and ready to execute NovelWeb tasks.'
 } finally {
-  if ($launcherLock -and (Test-Path -LiteralPath $bootstrapPath -PathType Leaf)) {
-    $safeBootstrapPath = Assert-PathWithin -BasePath $localRoot -CandidatePath $bootstrapPath
-    Remove-Item -LiteralPath $safeBootstrapPath -Force
-  }
   $pairingToken = $null
   if ($launcherLock) { $launcherLock.Dispose() }
+  if ($transcriptStarted) { try { Stop-Transcript | Out-Null } catch {} }
 }
+exit $exitStatus

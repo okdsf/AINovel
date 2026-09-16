@@ -120,7 +120,11 @@ if ($Check) {
 }
 
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-New-Item -Path $registryRoot -Force | Out-Null
+# Registry provider -Force replaces an existing key and deletes its values.
+# Keep all installed font registrations, including fonts owned by other apps.
+if (-not (Test-Path -LiteralPath $registryRoot)) {
+  New-Item -Path $registryRoot | Out-Null
+}
 $installedCount = 0
 $activatedCount = 0
 $installed = @(foreach ($item in $plan) {

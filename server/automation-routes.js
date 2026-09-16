@@ -8,6 +8,13 @@ import { canonicalizeNativePasteText, runNativeGeminiPaste } from './native-gemi
 const TOKEN_FILE = 'worker-token';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
+export function workerRecentlyConnected(lastSeenAt, now = Date.now()) {
+  if (!lastSeenAt) return false;
+  const age = now - Date.parse(lastSeenAt);
+  // A hidden Gemini page may have its normal heartbeat delayed to a minute.
+  return Number.isFinite(age) && age >= 0 && age < 90_000;
+}
+
 function isLoopbackAddress(value) {
   const address = String(value || '').trim().toLowerCase();
   return address === '::1'
@@ -235,10 +242,7 @@ export async function registerAutomationRoutes(app, {
     const aggregate = await store.getWorkerStatus();
     const worker = { ...aggregate, ...(workerPresence || {}) };
     const lastSeenAt = worker?.lastSeenAt || null;
-    // Disabled/idle runners intentionally heartbeat every ~30 seconds. Keep a
-    // little scheduling headroom so the UI does not flicker offline between
-    // healthy heartbeats.
-    const connected = Boolean(lastSeenAt && Date.now() - Date.parse(lastSeenAt) < 45_000);
+    const connected = workerRecentlyConnected(lastSeenAt);
     res.set('Cache-Control', 'no-store');
     res.json({
       worker: { ...worker, connected },

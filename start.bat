@@ -92,17 +92,14 @@ exit /b 0
 echo [OK] Node.js %NODE_VER% detected.
 
 REM --------------------------------------------------------------------
-REM Step 2 - Check dependencies (npm sentinel)
+REM Step 2 - Check the modules needed by the running application
 REM --------------------------------------------------------------------
-if not exist node_modules\.package-lock.json (
+REM npm's hidden lockfile is optional metadata, not a runtime health check.
+node scripts\check-runtime-dependencies.mjs
+if errorlevel 1 (
     echo Installing dependencies...
     call npm ci
-    if errorlevel 1 (
-        echo.
-        echo [X] npm ci failed. Check your internet connection.
-        pause
-        exit /b 1
-    )
+    if errorlevel 1 goto :DependenciesFailed
     echo.
 )
 
@@ -111,18 +108,17 @@ REM Step 3 - Launch NovelWeb and its dedicated Gemini Runner browser
 REM --------------------------------------------------------------------
 REM The runner launcher reuses a matching NovelWeb instance or selects a free
 REM frontend/backend port pair, then starts the isolated Chrome profile and
-REM waits for the extensions' authenticated heartbeat.
-REM Fonts, Stylus, and default reading styles are provisioned before Chrome.
-REM Verified caches are reused; only missing or damaged assets are downloaded.
+REM checks the extensions' actual authenticated API connection.
+REM The local workbench starts first. Optional installation differences are
+REM logged in the background and do not prevent the workbench from opening.
 echo.
-echo Preparing fonts and reading styles automatically. First launch needs internet.
 echo Starting NovelWeb and the dedicated Gemini Runner browser...
 echo ========================================
 
 call npm run gemini
 if errorlevel 1 (
     echo.
-    echo [X] NovelWeb or the dedicated browser failed to start.
+    echo [X] The local NovelWeb services did not become ready.
     echo     Review the error above for the exact cause.
     pause
     exit /b 1
@@ -130,7 +126,13 @@ if errorlevel 1 (
 
 echo.
 echo ========================================
-echo [OK] NovelWeb and the dedicated Gemini Runner browser are ready.
-echo     The selected Automation URL is shown above.
+echo [OK] NovelWeb workbench is ready.
+echo     The Automation URL, browser status and log location are shown above.
 echo ========================================
 exit /b 0
+
+:DependenciesFailed
+echo.
+echo [X] npm ci failed. Check your internet connection.
+pause
+exit /b 1
